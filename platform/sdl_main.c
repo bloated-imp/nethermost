@@ -89,15 +89,15 @@ static void absolute_path_args(int argc, char **argv)
 static const char *program_for(int game)
 {
 #if defined(__APPLE__)
-    if (game == DOOM_WAD_DOOM) return "Play DERP";
+    if (game == DOOM_WAD_DOOM) return "Nethermost";
 #elif defined(_WIN32)
-    if (game == DOOM_WAD_DOOM) return "Play DERP.exe";
-    if (game == DOOM_WAD_HERETIC) return "derp-heretic.exe";
+    if (game == DOOM_WAD_DOOM) return "Nethermost.exe";
+    if (game == DOOM_WAD_HERETIC) return "nethermost-heretic.exe";
 #else
-    if (game == DOOM_WAD_DOOM) return "play-derp";
+    if (game == DOOM_WAD_DOOM) return "nethermost";
 #endif
 #ifndef _WIN32
-    if (game == DOOM_WAD_HERETIC) return "derp-heretic";
+    if (game == DOOM_WAD_HERETIC) return "nethermost-heretic";
 #endif
     return NULL;
 }
@@ -152,11 +152,11 @@ static void hand_off(int game, int argc, char **argv, const char *wad, const cha
     {
         FILE *probe = fopen(path, "rb");
 #ifdef __APPLE__
-        /* Next to the build's Play DERP.app rather than inside it. */
+        /* Next to the build's Nethermost.app rather than inside it. */
         if (!probe && game == DOOM_WAD_DOOM)
         {
             SDL_free(path); path = NULL;
-            if (SDL_asprintf(&path, "%sPlay DERP.app/Contents/MacOS/Play DERP", folder) > 0) probe = fopen(path, "rb");
+            if (SDL_asprintf(&path, "%sNethermost.app/Contents/MacOS/Nethermost", folder) > 0) probe = fopen(path, "rb");
         }
 #endif
         if (probe) fclose(probe);

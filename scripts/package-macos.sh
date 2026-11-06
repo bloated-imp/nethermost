@@ -8,22 +8,22 @@ project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=${1:-"$project_dir/build/play"}
 output_dir=${2:-"$project_dir"}
 freedoom_dir=${FREEDOOM_DIR:-"$project_dir/build/game-data"}
-output_app="$output_dir/Play DERP.app"
-source_app="$build_dir/Play DERP.app"
+output_app="$output_dir/Nethermost.app"
+source_app="$build_dir/Nethermost.app"
 
-if [ ! -x "$source_app/Contents/MacOS/Play DERP" ]; then
+if [ ! -x "$source_app/Contents/MacOS/Nethermost" ]; then
     echo "Build the SDL app first; see BUILDING.md." >&2
     exit 1
 fi
 # The Heretic program goes in Contents/MacOS: the launcher hands Heretic WADs over.
-if [ ! -x "$build_dir/derp-heretic" ]; then
-    echo "Build derp-heretic too; see BUILDING.md." >&2
+if [ ! -x "$build_dir/nethermost-heretic" ]; then
+    echo "Build nethermost-heretic too; see BUILDING.md." >&2
     exit 1
 fi
 mkdir -p "$output_dir"
 rm -rf "$output_app"
 ditto "$source_app" "$output_app"
-cp "$build_dir/derp-heretic" "$output_app/Contents/MacOS/derp-heretic"
+cp "$build_dir/nethermost-heretic" "$output_app/Contents/MacOS/nethermost-heretic"
 resources="$output_app/Contents/Resources"
 mkdir -p "$resources/Licenses"
 cp "$project_dir/LICENSE.TXT" "$resources/Licenses/GPL-3.txt"
@@ -49,6 +49,6 @@ if [ -f "$freedoom_dir/COPYING.txt" ]; then
         cp "$freedoom_dir/$item" "$resources/Licenses/Freedoom/$item"
     done
 fi
-codesign --force --sign - "$output_app/Contents/MacOS/derp-heretic"
+codesign --force --sign - "$output_app/Contents/MacOS/nethermost-heretic"
 codesign --force --sign - "$output_app"
 echo "Ready: $output_app"

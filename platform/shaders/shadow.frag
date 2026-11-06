@@ -26,7 +26,9 @@ float shadowCoverage(vec2 uv) {
 }
 void main() {
 #ifdef DECAL
-    float alpha=shadowCoverage(vUV);
+    // With crisp walls and floors (c.effects.x 0), a mark on them keeps its texels
+    // square as they do, instead of blending between them into a soft blot.
+    float alpha=shadowCoverage(c.effects.x==0.0?floor(vUV)+0.5:vUV);
     // MODE_HARD_SILHOUETTE: hard-edged silhouettes keep the sprite's pixel outline.
     // MODE_STIPPLED: as the flashlight's other shadows (flashStipple in
     // lighting.glsl), the edge breaks into a 2x2 ordered dither in 4 steps.

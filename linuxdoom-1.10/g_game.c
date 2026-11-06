@@ -58,6 +58,7 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "w_wad.h"
 
 #include "p_local.h" 
+#include "p_movetune.h"
 #include "p_phobos.h"
 
 #include "s_sound.h"
@@ -249,7 +250,9 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     boolean	bstrafe; 
     int		speed;
     int		tspeed; 
+    int		turn;
     int		forward;
+    int		maxmove = MAXPLMOVE;
     int		side;
     
     ticcmd_t*	base;
@@ -291,6 +294,16 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	tspeed = 2;             // slow turn 
     else 
 	tspeed = speed;
+    // Keyboard and joystick turning, tuned (p_movetune.h); the mouse turns as it did.
+    turn = angleturn[tspeed];
+    if (P_MoveTuning ())
+    {
+	// Ramp-up other than DOOM's: a slow start lasting moveturnramp times
+	// as long, easing into full speed instead of DOOM's jump to it.
+	if (moveturnramp != 1)
+	    turn = P_TurnRamp (angleturn[2], angleturn[speed], turnheld, SLOWTURNTICS*moveturnramp);
+	turn = P_TunedMove (turn, moveturn);
+    }
     
     // let movement keys cancel each other out
     if (strafe) 
@@ -314,13 +327,13 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     else 
     { 
 	if (gamekeydown[key_right]) 
-	    cmd->angleturn -= angleturn[tspeed]; 
+	    cmd->angleturn -= turn; 
 	if (gamekeydown[key_left]) 
-	    cmd->angleturn += angleturn[tspeed]; 
+	    cmd->angleturn += turn; 
 	if (joyxmove > 0) 
-	    cmd->angleturn -= angleturn[tspeed]; 
+	    cmd->angleturn -= turn; 
 	if (joyxmove < 0) 
-	    cmd->angleturn += angleturn[tspeed]; 
+	    cmd->angleturn += turn; 
     } 
  
     if (gamekeydown[key_up]) 
@@ -434,15 +447,26 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     mouseturns[maketic%BACKUPTICS] = strafe ? 0 : -mousex*0x8;
 
     mousex = mousey = 0; 
+
+    // Walk and run speed, tuned (p_movetune.h); above 1 the cap rises with it.
+    if (P_MoveTuning ())
+    {
+	double	scale = speed ? moverun : movewalk;
+
+	forward = P_TunedMove (forward, scale);
+	side = P_TunedMove (side, scale);
+	if (scale > 1)
+	    maxmove = P_TunedMove (MAXPLMOVE, scale);
+    }
 	 
-    if (forward > MAXPLMOVE) 
-	forward = MAXPLMOVE; 
-    else if (forward < -MAXPLMOVE) 
-	forward = -MAXPLMOVE; 
-    if (side > MAXPLMOVE) 
-	side = MAXPLMOVE; 
-    else if (side < -MAXPLMOVE) 
-	side = -MAXPLMOVE; 
+    if (forward > maxmove) 
+	forward = maxmove; 
+    else if (forward < -maxmove) 
+	forward = -maxmove; 
+    if (side > maxmove) 
+	side = maxmove; 
+    else if (side < -maxmove) 
+	side = -maxmove; 
  
     cmd->forwardmove += forward; 
     cmd->sidemove += side;

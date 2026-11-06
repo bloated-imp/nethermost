@@ -40,6 +40,7 @@ rcsid[] = "$Id: p_user.c,v 1.3 1997/01/28 22:08:29 b1 Exp $";
 
 #include <math.h>
 #include <stdlib.h>
+#include "p_movetune.h"
 
 
 
@@ -60,6 +61,22 @@ boolean		onground;
 boolean P_UseResponsiveMovement (void)
 {
     return !classicmovement && !demoplayback && !demorecording && !netgame;
+}
+
+// Movement tuning (F4, p_movetune.h) in every movement mode, but not in demos
+// or netgames: they store input only and must move as recorded.
+boolean P_MoveTuning (void)
+{
+    return !demoplayback && !demorecording && !netgame;
+}
+
+// The view's and the weapon's bob cycle, pertic fine angles a tic, at the
+// tuned pace (movebobrate); DOOM's own arithmetic when untuned.
+int P_BobPhase (int pertic)
+{
+    if (!P_MoveTuning () || movebobrate == 1)
+	return (pertic*leveltime)&FINEMASK;
+    return (int)fmod (pertic*movebobrate*(double)leveltime, FINEANGLES);
 }
 
 // DOOM adds the strafe thrust on top of the forward one, so diagonals run up
@@ -242,6 +259,9 @@ void P_CalcHeight (player_t* player)
     if (P_UseResponsiveMovement ())
         player->bob /= 2;
 
+    if (P_MoveTuning ())
+	player->bob = (fixed_t)(player->bob*movebob);
+
     if ((player->cheats & CF_NOMOMENTUM) || !onground)
     {
 	player->viewz = player->mo->z + VIEWHEIGHT;
@@ -253,7 +273,7 @@ void P_CalcHeight (player_t* player)
 	return;
     }
 		
-    angle = (FINEANGLES/20*leveltime)&FINEMASK;
+    angle = P_BobPhase (FINEANGLES/20);
     bob = FixedMul ( player->bob/2, finesine[angle]);
 
     
@@ -297,7 +317,12 @@ void P_MovePlayer (player_t* player)
 {
     ticcmd_t*		cmd;
     // Match original terminal speed with 3/4 friction: (1-3/4)/(1-29/32).
-    int thrust = P_LibraryLegs (P_UseResponsiveMovement () ? 2048*8/3 : 2048);
+    int thrust = P_UseResponsiveMovement () ? 2048*8/3 : 2048;
+
+    // Momentum (p_movetune.h): a weaker push against less friction, same top speed.
+    if (P_MoveTuning ())
+	thrust = P_TunedThrust (thrust, movemomentum);
+    thrust = P_LibraryLegs (thrust);
 	
     cmd = &player->cmd;
 

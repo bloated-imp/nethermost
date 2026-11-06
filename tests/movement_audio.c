@@ -33,6 +33,10 @@ int Game_ThinkerIsMobj(const thinker_t *thinker) { return thinker == &monster.th
 int Game_WeaponHeft(int weapon) { (void)weapon; return 2; }
 float Game_SoundCarry(int id) { (void)id; return 1; }
 void Game_SfxLoaded(int id, void *data) { (void)id; (void)data; }
+const char *Game_SoundName(int id, int type, int weapon) { (void)id; (void)type; (void)weapon; return NULL; }
+void UserSounds_Init(void) { }
+int UserSounds_Lump(const char *lump, user_sound_t *out) { (void)lump; (void)out; return 0; }
+int UserSounds_Named(const char *name, user_sound_t *out) { (void)name; (void)out; return 0; }
 void Game_TraceShots(game_shot_traced traced) { (void)traced; }
 game_surface Game_FlatSurface(const char *name) { return name[0] == 'W' ? GAME_SURFACE_LIQUID : GAME_SURFACE_STONE; }
 game_liquid Game_LiquidFlat(const char *name) { (void)name; return GAME_LIQUID_WATER; }
@@ -103,6 +107,8 @@ void MixerMusic_Render(float *stereo, int frames) { (void)stereo; (void)frames; 
 sf2_bank_t *MixerMusic_UseBank(sf2_bank_t *new_bank) { (void)new_bank; return NULL; }
 sf2_bank_t *SF2_Open(const char *path, int rate, int voices) { (void)path; (void)rate; (void)voices; return NULL; }
 void SF2_Close(sf2_bank_t *old_bank) { (void)old_bank; }
+track_stream_t *Track_Open(const char *path) { (void)path; return NULL; }
+void MixerMusic_UseTrack(track_stream_t *track, int rate) { (void)track; (void)rate; }
 
 static int near(float a, float b) { return fabsf(a - b) < 1e-6f; }
 static void reset_channels(void)

@@ -4,7 +4,7 @@ game itself, checked for holes and compared with reference pictures, so
 renderer work can't quietly ruin it.
 
     py -I scp_7179_b/renders.py --iwad D:/dev/DOOM-gamedata/gog_doom/doom2.wad
-        [--game "build/play/Release/Play DERP.exe"] [--only across,fall] [--accept [views]]
+        [--game "build/play/Release/Nethermost.exe"] [--only across,fall] [--accept [views]]
 
 Each view is rendered twice, hidden (-rendercheck), from the library.wad
 beside the game: once as it is, for the look, and once with the far fog
@@ -235,7 +235,7 @@ def render(game, iwad, work, name, extra, data, tic, holes_wad, png):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--iwad", required=True, help="DOOM II")
-    parser.add_argument("--game", default=os.path.join(ROOT, "build", "play", "Release", "Play DERP.exe"))
+    parser.add_argument("--game", default=os.path.join(ROOT, "build", "play", "Release", "Nethermost.exe"))
     parser.add_argument("--only", help="views, comma separated: " + ", ".join(v[0] for v in VIEWS))
     parser.add_argument("--accept", nargs="?", const="all", help="take the latest renders as the references (all, or views named)")
     parser.add_argument("--jobs", type=int, default=3, help="renders at once")

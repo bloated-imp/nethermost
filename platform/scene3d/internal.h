@@ -39,6 +39,10 @@ extern boolean menuactive, automapactive, paused;
 extern int numflats, numtextures;
 extern float tourpitch;
 extern boolean freeaim, classicaim, classicmovement, strafeboost;
+extern double movewalk, moverun, moveturn, movemomentum, movebob, movebobrate, moveturnramp;   // movement tuning (p_movetune.h)
+boolean P_MoveTuning(void);
+extern boolean ps1title;   // the PlayStation-style title (f_firetitle.h)
+const void *ST_Face(int *x,int *y);   // the status bar's face (st_stuff.h)
 extern boolean quickconfirm; // The game's menu (F4 "Confirm quicksave and quickload").
 extern fixed_t aimslope;
 int P_PicAnimationNext(boolean istexture,int pic,int *next);

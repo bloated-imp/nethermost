@@ -52,7 +52,7 @@ set(DOOM_SOURCES
     linuxdoom-1.10/doomdef.c
     linuxdoom-1.10/doomstat.c
     linuxdoom-1.10/dstrings.c
-    linuxdoom-1.10/f_finale.c
+    linuxdoom-1.10/f_finale.c linuxdoom-1.10/f_firetitle.c
     linuxdoom-1.10/f_library.c
     linuxdoom-1.10/f_wipe.c
     linuxdoom-1.10/g_game.c
@@ -220,16 +220,29 @@ if(DOOM_BUILD_SDL)
         URL https://github.com/schellingb/TinySoundFont/archive/853a0a171759f1ddba0de1442133a75912bbeffa.tar.gz
         URL_HASH SHA256=76c356df524f71f2a34f67fa0cb2cb946036fe7a65d2930a849569c5e742fa57)
     FetchContent_MakeAvailable(TinySoundFont)
+    # Decoders for the music tracks a player supplies (platform/audio/track_stream.c):
+    # dr_flac, dr_mp3 and dr_wav (public domain or MIT-0), stb_vorbis (public
+    # domain or MIT). Header-only; pinned to commits. Offline, set
+    # FETCHCONTENT_SOURCE_DIR_DRLIBS and FETCHCONTENT_SOURCE_DIR_STB.
+    FetchContent_Declare(DrLibs
+        GIT_REPOSITORY https://github.com/mackron/dr_libs.git
+        GIT_TAG 35b5c392cc15456736c440a68dbe073178bbffe0)
+    FetchContent_Declare(Stb
+        GIT_REPOSITORY https://github.com/nothings/stb.git
+        GIT_TAG d14d46f6b44456eb88beac58cba833a4135d4c89)
+    FetchContent_Populate(DrLibs)
+    FetchContent_Populate(Stb)
     # Music: the score loaders and player, the OPL synth (built from the chip
-    # manual and the lump formats, see platform/audio/opl_music_spec.md) and
-    # the SoundFont synth. platform/i_music.c and platform/audio/mixer_music.c
-    # are the game's side.
+    # manual and the lump formats, see platform/audio/opl_music_spec.md), the
+    # SoundFont synth and the track streamer. platform/i_music.c,
+    # platform/user_music.c and platform/audio/mixer_music.c are the game's side.
     add_library(doom_music STATIC platform/audio/music_score.c platform/audio/music_player.c
         platform/audio/opl_chip.c platform/audio/opl_genmidi.c platform/audio/opl_voices.c
-        platform/audio/sf2_synth.c)
+        platform/audio/sf2_synth.c platform/audio/track_stream.c platform/audio/zip_read.c platform/audio/sndinfo.c)
     target_include_directories(doom_music PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio")
     target_include_directories(doom_music PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
     target_include_directories(doom_music PRIVATE "${tinysoundfont_SOURCE_DIR}")
+    target_include_directories(doom_music PRIVATE "${drlibs_SOURCE_DIR}" "${stb_SOURCE_DIR}")
     target_link_libraries(doom_music PUBLIC nuked_opl3 doom_options)
     if(NOT WIN32)
         target_link_libraries(doom_music PUBLIC m)
@@ -403,7 +416,7 @@ if(DOOM_BUILD_SDL)
         platform/audio/ringing.c platform/audio/head_knock.c platform/audio/falling_air.c platform/audio/library_steps.c
         platform/audio/library_acoustics.c)
     add_executable(doom MACOSX_BUNDLE platform/sdl_main.c platform/i_sdl_video.c
-        platform/i_sdl_sound.c platform/i_music.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
+        platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
         platform/i_portable_system.c platform/wad_probe.c)
     target_link_libraries(doom PRIVATE doom_game SDL3::SDL3 doom_music)
     target_compile_definitions(doom PRIVATE DOOM_NATIVE)
@@ -418,10 +431,10 @@ if(DOOM_BUILD_SDL)
         # The identifier keeps the project's old name: changing it would make
         # macOS treat the app as new and forget the launcher's WAD folder.
         set_target_properties(doom PROPERTIES
-            OUTPUT_NAME "Play DERP"
+            OUTPUT_NAME "Nethermost"
             OBJCXX_STANDARD 17 OBJCXX_STANDARD_REQUIRED YES
             MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.robongrui.duct-tape-doom"
-            MACOSX_BUNDLE_BUNDLE_NAME "Play DERP"
+            MACOSX_BUNDLE_BUNDLE_NAME "Nethermost"
             MACOSX_BUNDLE_ICON_FILE derp.icns
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platform/Info.plist.in")
         if(DOOM_SOUNDFONT)
@@ -439,14 +452,14 @@ if(DOOM_BUILD_SDL)
     else()
         if(WIN32)
             target_sources(doom PRIVATE platform/icon/derp.rc platform/icon/derp.manifest)
-            set_target_properties(doom PROPERTIES OUTPUT_NAME "Play DERP")
+            set_target_properties(doom PROPERTIES OUTPUT_NAME "Nethermost")
         else()
             # The window icon, loaded beside the program (i_sdl_video.c).
             # Made from platform/icon/derp-logo.png by scripts/make-icons.py.
-            set_target_properties(doom PROPERTIES OUTPUT_NAME play-derp)
+            set_target_properties(doom PROPERTIES OUTPUT_NAME nethermost)
             add_custom_command(TARGET doom POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/platform/icon/derp.png"
-                    "$<TARGET_FILE_DIR:doom>/play-derp.png")
+                    "$<TARGET_FILE_DIR:doom>/nethermost.png")
         endif()
         if(DOOM_SOUNDFONT)
             add_custom_command(TARGET doom POST_BUILD
@@ -495,30 +508,30 @@ if(DOOM_BUILD_SDL)
                     "$<TARGET_FILE_DIR:doom>/library.wad")
         endif()
     endif()
-    # The Heretic program: derp-heretic -iwad heretic.wad
-    add_executable(derp-heretic platform/sdl_main.c platform/i_sdl_video.c
-        platform/i_sdl_sound.c platform/i_music.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
+    # The Heretic program: nethermost-heretic -iwad heretic.wad
+    add_executable(nethermost-heretic platform/sdl_main.c platform/i_sdl_video.c
+        platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
         platform/i_portable_system.c platform/wad_probe.c)
-    target_link_libraries(derp-heretic PRIVATE heretic_game SDL3::SDL3 doom_music)
-    target_compile_definitions(derp-heretic PRIVATE DOOM_NATIVE)
-    doom_add_renderer(derp-heretic ${DOOM_RENDER3D})
+    target_link_libraries(nethermost-heretic PRIVATE heretic_game SDL3::SDL3 doom_music)
+    target_compile_definitions(nethermost-heretic PRIVATE DOOM_NATIVE)
+    doom_add_renderer(nethermost-heretic ${DOOM_RENDER3D})
     if(WIN32)
-        target_sources(derp-heretic PRIVATE platform/icon/derp.rc platform/icon/derp.manifest)
+        target_sources(nethermost-heretic PRIVATE platform/icon/derp.rc platform/icon/derp.manifest)
     endif()
     if(APPLE)
-        target_sources(derp-heretic PRIVATE platform/i_mac_music.c platform/i_wad_launcher.mm)
-        target_link_libraries(derp-heretic PRIVATE "-framework AudioToolbox" "-framework CoreFoundation" "-framework Cocoa")
-        set_target_properties(derp-heretic PROPERTIES OBJCXX_STANDARD 17 OBJCXX_STANDARD_REQUIRED YES)
-        # One app plays both: the launcher hands Heretic WADs to derp-heretic
-        # beside Play DERP in Contents/MacOS (sdl_main.c).
-        add_dependencies(doom derp-heretic)
+        target_sources(nethermost-heretic PRIVATE platform/i_mac_music.c platform/i_wad_launcher.mm)
+        target_link_libraries(nethermost-heretic PRIVATE "-framework AudioToolbox" "-framework CoreFoundation" "-framework Cocoa")
+        set_target_properties(nethermost-heretic PROPERTIES OBJCXX_STANDARD 17 OBJCXX_STANDARD_REQUIRED YES)
+        # One app plays both: the launcher hands Heretic WADs to nethermost-heretic
+        # beside Nethermost in Contents/MacOS (sdl_main.c).
+        add_dependencies(doom nethermost-heretic)
         # A target of its own, so a Heretic-only change reaches the bundle
-        # even when Play DERP itself doesn't relink.
-        add_custom_target(derp-heretic-bundle ALL
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:derp-heretic>"
-                "$<TARGET_BUNDLE_DIR:doom>/Contents/MacOS/derp-heretic"
+        # even when Nethermost itself doesn't relink.
+        add_custom_target(nethermost-heretic-bundle ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:nethermost-heretic>"
+                "$<TARGET_BUNDLE_DIR:doom>/Contents/MacOS/nethermost-heretic"
             VERBATIM)
-        add_dependencies(derp-heretic-bundle doom derp-heretic)
+        add_dependencies(nethermost-heretic-bundle doom nethermost-heretic)
     endif()
     if(BUILD_TESTING)
         add_executable(doom-movement-audio-tests tests/movement_audio.c
@@ -530,9 +543,22 @@ if(DOOM_BUILD_SDL)
             target_link_libraries(doom-movement-audio-tests PRIVATE m)
         endif()
         add_test(NAME movement-audio-routing COMMAND doom-movement-audio-tests)
+        # Movement tuning (F4 Controls, Movement): its momentum and scaling math (p_movetune.h).
+        add_executable(doom-move-tuning-tests tests/move_tuning.c)
+        target_include_directories(doom-move-tuning-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
+        add_test(NAME move-tuning COMMAND doom-move-tuning-tests)
+        # The music tracks a player supplies: finding them and streaming them.
+        add_executable(doom-user-music-tests tests/user_music.c platform/user_music.c)
+        target_include_directories(doom-user-music-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
+        target_link_libraries(doom-user-music-tests PRIVATE doom_music SDL3::SDL3)
+        add_test(NAME user-music-tracks COMMAND doom-user-music-tests)
+        # Sound files the player supplies: packs, SNDINFO and decoding (platform/user_sounds.c's parts).
+        add_executable(doom-user-sounds-tests tests/user_sounds.c)
+        target_link_libraries(doom-user-sounds-tests PRIVATE doom_music)
+        add_test(NAME user-sounds COMMAND doom-user-sounds-tests)
         function(doom_add_smoke target game renderer)
             add_executable(${target} ${ARGN} platform/i_sdl_video.c
-                platform/i_sdl_sound.c platform/i_music.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
+                platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
                 platform/i_portable_system.c)
             target_compile_definitions(${target} PRIVATE DOOM_TEST_DRIVER)
             target_link_libraries(${target} PRIVATE ${game} SDL3::SDL3 doom_music)

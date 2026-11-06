@@ -33,6 +33,8 @@
 #define MODE_SECTOR_SHIFT    14
 #define MODE_WOUND_PALETTE_SHIFT 14
 #define MODE_WOUND_STAIN     (1u<<22) // blend blood into the source paint instead of replacing it
+// Screen sprites only, with MODE_RELIT: the status bar's face, its normals facing ahead (weapon.glsl).
+#define MODE_FACE            (1u<<23)
 // Monster sprites only (not soft ones): Phobos' rime on a body left in vacuum, 0-255 (decompression.cpp).
 #define MODE_FROST_SHIFT     24
 

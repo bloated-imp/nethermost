@@ -1,15 +1,15 @@
-DERP, the DOOM Engine Remaster Project. Each download includes **Freedoom**, so you can
+Nethermost, a fork of DERP, the DOOM Engine Remaster Project (https://github.com/robongrui/derp). Each download includes **Freedoom**, so you can
 play straight away; add your own WADs to play DOOM, DOOM II, Heretic or custom maps.
 
 ## Download
 
 | System | File | How to play |
 | --- | --- | --- |
-| macOS 11 or newer (Apple Silicon and Intel) | `DERP-mac.zip` | Unzip and open **Play DERP.app**. Choose your WAD folder or click **Play Freedoom**. |
-| Windows 10/11, 64-bit | `DERP-windows.zip` | Unzip, drop your `.wad` files into the `wads` folder and run `Play DERP.exe`. |
-| Linux, x86-64 | `DERP-linux.tar.gz` | Unpack, drop your `.wad` files into `wads` and run `./play-derp`. |
+| macOS 11 or newer (Apple Silicon and Intel) | `Nethermost-mac.zip` | Unzip and open **Nethermost.app**. Choose your WAD folder or click **Play Freedoom**. |
+| Windows 10/11, 64-bit | `Nethermost-windows.zip` | Unzip, drop your `.wad` files into the `wads` folder and run `Nethermost.exe`. |
+| Linux, x86-64 | `Nethermost-linux.tar.gz` | Unpack, drop your `.wad` files into `wads` and run `./nethermost`. |
 
-`DERP-source.tar.gz` is the complete source of these downloads: the
+`Nethermost-source.tar.gz` is the complete source of these downloads: the
 game's code plus the exact SDL and Nuked OPL3 sources it is built with, so it
 builds without an internet connection. GitHub's "Source code" archives hold
 the game's code only.
@@ -21,8 +21,8 @@ game. Controls and options are in `PLAY.md`.
 **macOS:** the app is not notarized by Apple, so the first launch is blocked
 with "Apple could not verify…". Click **Done**, open **System Settings → Privacy &
 Security**, scroll down and click **Open Anyway** next to the message about
-Play DERP, then confirm. After that it opens normally. (Alternatively, run
-`xattr -dr com.apple.quarantine "Play DERP.app"` in Terminal.)
+Nethermost, then confirm. After that it opens normally. (Alternatively, run
+`xattr -dr com.apple.quarantine "Nethermost.app"` in Terminal.)
 
 **Windows:** the program is not code-signed, so SmartScreen may say "Windows
 protected your PC". Click **More info**, then **Run anyway**.

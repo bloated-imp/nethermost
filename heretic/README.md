@@ -1,6 +1,6 @@
-# DERP: Heretic
+# Nethermost: Heretic
 
-DERP plays Heretic too. Raven's game
+Nethermost, like DERP, plays Heretic too. Raven's game
 runs on the same 3D renderer, lighting, sound and music as the DOOM program,
 and all of it is still worked out from the WAD you play: no replacement
 textures, models or recorded sounds.
@@ -23,17 +23,17 @@ The shareware `heretic1.wad` should work but has not been tried.
 ## Building and starting it
 
 Build the SDL app as described in [`BUILDING.md`](../BUILDING.md). That also
-builds the Heretic program, `derp-heretic`, and on the Mac puts it inside
-`Play DERP.app`.
+builds the Heretic program, `nethermost-heretic`, and on the Mac puts it inside
+`Nethermost.app`.
 
 Then either:
 
-- start **Play DERP**, choose the folder with your Heretic WAD and pick it.
+- start **Nethermost**, choose the folder with your Heretic WAD and pick it.
   The launcher hands Heretic WADs over to the Heretic program by itself; or
 - start it from a terminal with the full path to the WAD:
 
   ```
-  build/play/derp-heretic -iwad /path/to/heretic.wad
+  build/play/nethermost-heretic -iwad /path/to/heretic.wad
   ```
 
   `-warp 1 1` jumps straight to E1M1.

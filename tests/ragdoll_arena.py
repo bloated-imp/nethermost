@@ -244,10 +244,10 @@ def machine():
     import os
     here = os.path.dirname(os.path.abspath(__file__))
     if sys.platform == 'win32':     # build/play is a Visual Studio tree; game data sits beside the repo
-        return (os.path.join(here, '..', 'build', 'play', 'Release', 'Play DERP.exe'),
+        return (os.path.join(here, '..', 'build', 'play', 'Release', 'Nethermost.exe'),
                 os.path.join(here, '..', '..', 'DOOM-gamedata', 'gog_doom', 'doom2.wad'),
                 os.path.join(os.environ.get('APPDATA', ''), 'Local Games', 'DOOM'))
-    return (os.path.join(here, '..', 'build', 'play', 'Play DERP.app', 'Contents', 'MacOS', 'Play DERP'),
+    return (os.path.join(here, '..', 'build', 'play', 'Nethermost.app', 'Contents', 'MacOS', 'Nethermost'),
             os.path.expanduser('~/Downloads/DOOM-gamedata/gog_doom/doom2.wad'),
             os.path.expanduser('~/Library/Application Support/Local Games/DOOM'))
 

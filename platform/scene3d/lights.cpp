@@ -340,7 +340,7 @@ void collectFlashes(float fraction,const Uniforms &camera) {
         // moves, plus a slow drift at rest, so it feels carried rather than
         // glued to the view.
         float bob=std::min(1.0f,players[displayplayer].bob/16.0f/FRACUNIT),time=leveltime%clockWrapTics+fraction;
-        float phase=time*(2*doomPi/64),seconds=time/TICRATE;
+        float phase=time*(2*doomPi/64)*(P_MoveTuning()?(float)movebobrate:1.0f),seconds=time/TICRATE;
         float yaw=(std::cos(phase)*bob*1.2f+std::sin(seconds*(2*doomPi/4.3f))*0.2f)*(doomPi/180);
         float pitch=(-std::abs(std::sin(phase))*bob*0.8f+std::sin(seconds*(2*doomPi/3.1f))*0.15f)*(doomPi/180);
         for(int c=0;c<3;++c) {

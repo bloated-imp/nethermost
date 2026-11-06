@@ -78,7 +78,7 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
             {"Mode",{
                 {"Gameplay",{
                     choice("mode","Gameplay",&s.mode,{"Normal","Authored","Phobos"},{0,1,2},
-                        "Normal: every map looks the way DERP derives it from the WAD, sun and all. Authored: the game's own episodes "
+                        "Normal: every map looks the way the game derives it from the WAD, sun and all. Authored: the game's own episodes "
                         "get looks picked by hand; Knee-Deep in the Dead lies at night in a downpour. Phobos: Knee-Deep in the Dead "
                         "taken literally (see the Phobos page). Switching restarts a first-episode map; you keep what you carry.",
                         [](const Settings &d){return hasAuthored(d)||hasPhobos(d);})}},
@@ -110,7 +110,7 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                     choice("time_of_day","Time of day",&s.timeOfDay,{"Map's own","Dawn","Morning","Noon","Afternoon","Dusk","Night"},{0,1,2,3,4,5,6},
                         "Where the sun stands and how it shines, from where the sky paints it. Dawn and Dusk: low and orange, soft "
                         "shadows, a tinted sky. Noon: high and white, the brightest light and the hardest shadows. Night: no sun, the "
-                        "outdoors dark and the lit rooms shining out through their windows. Map's own: as DERP derives it from the sky, "
+                        "outdoors dark and the lit rooms shining out through their windows. Map's own: as the game derives it from the sky, "
                         "or as the map or the Authored gameplay has it. Re-bakes the light. Never on Phobos."),
                     fits(choice("temperature","Temperature",&s.temperature,{"Map's own","-30 C","-20 C","-10 C","0 C","10 C","20 C","30 C","40 C","50 C"},
                         {climateOwn,-30,-20,-10,0,10,20,30,40,50},
@@ -164,6 +164,30 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "strafe-running. Classic: DOOM's own movement; you speed up and slow down gradually, slide a little "
                         "when you let go, and move faster diagonally at once. Demos and netgames always move as in DOOM.",
                         hasTunedMovement)}},
+                {"Tuning",{
+                    // For finding a slower PS1-like feel; 1.00 is the Movement choice above, unchanged.
+                    slider("move_walk","Walk speed",&s.moveWalk,0.3,1.5,0.05,
+                        "How fast you walk, 1.00 as the Movement choice above has it. Lower is slower. Not in demos or netgames.",
+                        hasTunedMovement),
+                    slider("move_run","Run speed",&s.moveRun,0.3,1.5,0.05,
+                        "How fast you run (the run key, or always-run with Caps Lock), 1.00 unchanged. Not in demos or netgames.",
+                        hasTunedMovement),
+                    slider("move_turn","Turn speed",&s.moveTurn,0.3,1.5,0.05,
+                        "How fast the turn keys and the joystick turn you, 1.00 unchanged. The mouse turns as before. "
+                        "Not in demos or netgames.",hasTunedMovement),
+                    slider("move_turn_ramp","Turn ramp-up",&s.moveTurnRamp,0,5,0.25,
+                        "How long the turn keys and the joystick take to reach full turning speed. 1.00 is DOOM's: a slow "
+                        "turn for 6 tics, then a jump to full speed. Other values ease from the slow turn to full speed "
+                        "instead, over that many times as long; 0 turns at full speed at once. Not in demos or netgames.",
+                        hasTunedMovement),
+                    slider("move_momentum","Momentum",&s.moveMomentum,0.5,3,0.25,
+                        "How long you take to get up to speed and to come to a stop, 1.00 unchanged; 2.00 twice as long. "
+                        "Your top speed stays the same. Not in demos or netgames.",hasTunedMovement),
+                    slider("move_bob","View bob",&s.moveBob,0,1.5,0.1,
+                        "How much the view and the weapon bob as you move, 1.00 unchanged, 0 still.",hasTunedMovement),
+                    slider("move_bob_rate","Bob rate",&s.moveBobRate,0.3,1.5,0.05,
+                        "How fast the view and the weapon bob, and the flashlight sways with them, 1.00 unchanged; lower is a "
+                        "slower, heavier step. Not in demos or netgames.",hasTunedMovement)}},
                 {"View",{
                     check("look","Mouse look",&s.look,"Mouse look tilts the camera, and your bullets go where you look."),
                     check("invert_look","Invert mouse look",&s.invertLook,"Moving the mouse forward tilts the view down, like a flight stick.",
@@ -196,6 +220,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "a little uneven in width unless the window is a whole multiple; sharp bilinear keeps them square "
                         "and blends only the one screen pixel between them.",
                         [](const Settings &d){return d.scale!=100;}),
+                    choice("aspect","Aspect",&s.aspect,{"Fill the screen","4:3"},{0,1},
+                        "4:3: the picture keeps the shape of an old TV, in the middle of the screen with black bars beside it; "
+                        "at 240p it is 320 by 240 pixels, like the PlayStation's picture on a TV. The resolution then counts "
+                        "the box, not the screen. Widescreen makes no difference in a 4:3 box."),
                     slider("msaa","Anti-aliasing (MSAA)",&s.msaa,0,std::max(1.0,std::log2((double)gpuMaxSamples())),1,
                         "Smooths the stair-steps along the edges of walls, floors and ledges. Texels, sprites and bars stay crisp. "
                         "Each step costs more GPU time.",
@@ -221,7 +249,14 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         [](const Settings &d){return d.presentation>=2;})}},
                 {"Retro look",{
                     check("retro","Retro scanlines",&s.retro,"Dark lines between the rows of the picture, like an old CRT monitor."),
-                    check("palette","Doom palette colors",&s.palette,"Quantize the final lighting and fog to the current WAD palette.")}}}},
+                    check("palette","Doom palette colors",&s.palette,"Quantize the final lighting and fog to the current WAD palette."),
+                    check("ps1_title","PS1 title screen",&s.ps1Title,
+                        "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
+                        "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture."),
+                    check("ps1_dither","PS1 dithering",&s.ps1Dither,
+                        "The colours cut to the PlayStation's 15 bits through its fine 4x4 dither pattern, which breaks smooth "
+                        "shading and fog into a grain. The pattern sits on the render's pixels, so it is coarser at lower "
+                        "resolutions; with Doom palette colors on as well, the dithered colours are matched to the palette.")}}}},
             {"Textures",{
                 {"Filtering",{
                     choice("filter","Walls and floors",&s.filter,{"Crisp pixels","Smooth (bilinear)","Sharp bilinear"},{0,1,2},
@@ -258,6 +293,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "The sheen and light painted into the weapon artwork are taken out, and the lights around you relight it: "
                         "their color, darker rounded edges, glowing rims against lights behind it, and highlights that slide over "
                         "the metal as you look around and the weapon bobs."),
+                    check("face_lighting","Relit face",&s.faceLighting,
+                        "The face on the status bar is relit the same way, looking where you look: a lamp to your right lights "
+                        "his right cheek, the room ahead lights his face, a muzzle flash flares over it, and in the dark it falls "
+                        "into shadow."),
                     check("window_glass","Window glass",&s.windowGlass,
                         "Windows found in the map's geometry get a pane of glass: grimy at the edges, streaked with highlights that "
                         "slide as you move, reflecting the sky from outside. The first shot, projectile or blast through it shatters "
@@ -483,6 +522,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "OPL is the FM synthesis of DOS sound cards, with DOOM's own instrument set. "
                         "A .sf2 bank put in the soundfonts folder beside doom.cfg replaces the bundled one.")}},
                 {"Effects",{
+                    check("user_sounds","Supplied sound files",&s.userSounds,
+                        "Sound files you put in the sounds folder beside doom.cfg or beside the game play in place of the WAD's: "
+                        "loose files named after the sound (DSPISTOL.ogg), or a ZDoom-style pack (.pk3) as it is, a PlayStation "
+                        "sound pack's monsters with their own sounds and all. A loose file wins over one in a pack. Off: the WAD's own."),
                     choice("sfx_resampling","Sample playback",&s.sfxResampling,{"Original","Smooth","Clean"},{0,1,2},
                         "DOOM's effects are 11 kHz samples. Original holds each sample, raw and gritty, with a bright sizzle on top. "
                         "Smooth blends between samples and keeps some edge. Clean filters the sizzle out entirely."),

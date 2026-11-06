@@ -698,6 +698,11 @@ void I_SoundOwn(void)
 {
 }
 
+void I_SoundFrom(int type, int weapon)
+{
+  type = weapon = 0;
+}
+
 fixed_t I_SoundReach(int id)
 {
   id = 0;
@@ -888,6 +893,8 @@ void I_UnRegisterSong(int handle)
   // UNUSED.
   handle = 0;
 }
+
+void I_SetMusicName(const char *map, const char *song) { (void)map; (void)song; }
 
 int I_RegisterSong(void* data)
 {

@@ -63,12 +63,14 @@ void I_UpdateSoundParams(int handle, int vol, int sep, int pitch)
 }
 void I_SoundAt(int handle, fixed_t x, fixed_t y, fixed_t z) { (void)handle; (void)x; (void)y; (void)z; }
 void I_SoundOwn(void) { }
+void I_SoundFrom(int type, int weapon) { (void)type; (void)weapon; }
 fixed_t I_SoundReach(int id) { (void)id; return FRACUNIT; }
 void I_InitMusic(void) { }
 void I_ShutdownMusic(void) { }
 void I_SetMusicVolume(int volume) { (void)volume; }
 void I_PauseSong(int handle) { (void)handle; }
 void I_ResumeSong(int handle) { (void)handle; }
+void I_SetMusicName(const char *map, const char *song) { (void)map; (void)song; }
 int I_RegisterSong(void *data) { (void)data; return 0; }
 void I_PlaySong(int handle, int looping) { (void)handle; (void)looping; }
 void I_StopSong(int handle) { (void)handle; }

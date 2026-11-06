@@ -15,12 +15,20 @@
 #include "opl_genmidi.h"
 #include "opl_voices.h"
 #include "sf2_synth.h"
+#include "track_stream.h"
 
 /* Full-volume gains. The loudest OPL score, MAP01, peaks at 0.83 on the
    chip. Through GeneralUser GS no score clips at 0.3, which sits a little
    under the OPL. */
 #define OPL_GAIN	1.0f
 #define SF2_GAIN	0.3f
+/* A recorded track is mastered near full scale; this sits it with the scores. */
+#define TRACK_GAIN	0.6f
+
+/* A player's recorded track (track_stream.h), when one stands in for the score. */
+static track_stream_t*	track;
+static boolean		track_playing;
+static int		rate_out = 44100;	/* the mixer's, as UseTrack gives it */
 
 static genmidi_instrument_t	instruments[GENMIDI_COUNT];
 static boolean		opl_ready, opl_failed;
@@ -77,19 +85,35 @@ void MixerMusic_UnRegister (void)
     MixerMusic_Stop ();
     song_loaded = false;
     Score_Clear (&score);
+    Track_Close (track);
+    track = NULL;
+}
+
+void MixerMusic_UseTrack (track_stream_t* using, int rate)
+{
+    MixerMusic_UnRegister ();
+    track = using;
+    rate_out = rate;
 }
 
 void MixerMusic_Play (boolean loop)
 {
+    music_paused = false;
+    if (track)
+    {
+	Track_Restart (track, loop);
+	track_playing = true;
+	return;
+    }
     if (!song_loaded)
 	return;
     Player_Start (&player, &score, synth, loop);
-    music_paused = false;
 }
 
 void MixerMusic_Stop (void)
 {
     Player_Stop (&player);
+    track_playing = false;
 }
 
 void MixerMusic_Pause (void) { music_paused = true; }
@@ -110,7 +134,15 @@ struct tsf* MixerMusic_UseBank (struct tsf* using)
 
 void MixerMusic_Render (float* stereo, int frames)
 {
-    if (music_paused || !player.playing)
+    if (music_paused)
+	return;
+    if (track)
+    {
+	if (track_playing && !Track_Mix (track, stereo, frames, rate_out, volume * TRACK_GAIN))
+	    track_playing = false;
+	return;
+    }
+    if (!player.playing)
 	return;
     Player_Mix (&player, stereo, frames, volume * (synth == &SF2_Synth ? SF2_GAIN : OPL_GAIN));
 }

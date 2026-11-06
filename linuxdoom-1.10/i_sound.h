@@ -96,6 +96,9 @@ void I_SoundAt(int handle, fixed_t x, fixed_t y, fixed_t z);
 // The next I_StartSound is the listener's own (a mixer may hear it through
 // a suit when there is no air around them).
 void I_SoundOwn(void);
+// What the next I_StartSound comes from: a thing's type (-1 none) and, a
+// player's, the weapon in hand (-1), for a sound pack's per-monster sounds.
+void I_SoundFrom(int type, int weapon);
 // How far an effect carries, FRACUNIT as DOOM hears it (gone past 1200
 // units): a mixer with a natural falloff lets loud ones (gunfire, blasts)
 // reach farther, fainter and muffled.
@@ -112,6 +115,10 @@ void I_SetMusicVolume(int volume);
 // PAUSE game handling.
 void I_PauseSong(int handle);
 void I_ResumeSong(int handle);
+// Names the song I_RegisterSong gets next: the map it plays on (E1M1,
+// MAP01; NULL off a map) and its music name without D_ (E1M1, INTER), so
+// a recorded track the player supplies can stand in for it (user_music.c).
+void I_SetMusicName(const char *map, const char *song);
 // Registers a song handle to song data.
 int I_RegisterSong(void *data);
 // Called by anything that wishes to start music.

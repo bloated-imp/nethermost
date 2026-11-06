@@ -1,3 +1,13 @@
+Nethermost, a fork of DERP
+https://github.com/robongrui/derp
+
+Nethermost is DERP with changes (see PS1-MOOD.md), distributed under the
+same license: the GNU General Public License version 3 (LICENSE.TXT) with
+the additional term below. It is not made or endorsed by DERP's author.
+DERP's notice follows unchanged.
+
+------------------------------------------------------------------------
+
 DERP, the DOOM Engine Remaster Project
 Copyright © 2026 robongrui
 

@@ -534,6 +534,10 @@ boolean freeaim;
 boolean classicaim;
 boolean classicmovement; // Heretic moves as it always did (no GAME_EFFECT_TUNED_MOVEMENT)
 boolean strafeboost;
+double movewalk = 1, moverun = 1, moveturn = 1, movemomentum = 1, movebob = 1, movebobrate = 1, moveturnramp = 1; // DOOM's movement tuning; Heretic's own movement ignores it
+boolean P_MoveTuning(void) { return false; } // the shared scene asks; Heretic is never tuned
+boolean ps1title; // DOOM's fire title (f_firetitle.c); Heretic's title is its own
+const void *ST_Face(int *x, int *y) { (void)x; (void)y; return NULL; } // DOOM's relit face; Heretic's bar has none
 boolean debugfly, debugnoclip, debuggod, debugnomonsters, debugnotarget;
 
 boolean P_DebugAllowed(void)

@@ -48,6 +48,9 @@ void ST_Ticker (void);
 // Called by main loop.
 void ST_Drawer (boolean fullscreen, boolean refresh);
 
+// The status bar's face now (a patch_t) and its place; NULL with the bar off.
+const void* ST_Face (int* x, int* y);
+
 // Called when the console player is spawned on each level.
 void ST_Start (void);
 

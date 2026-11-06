@@ -34,6 +34,7 @@ rcsid[] = "$Id: p_mobj.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 #include "doomdef.h"
 #include "p_local.h"
 #include "p_phobos.h"
+#include "p_movetune.h"
 #include "sounds.h"
 
 #include "st_stuff.h"
@@ -278,6 +279,10 @@ void P_XYMovement (mobj_t* mo)
             && !(mo->flags & MF_CORPSE) && P_UseResponsiveMovement ())
             friction = (player->cmd.forwardmove || player->cmd.sidemove)
                 ? 0xc000 : 0xa000;
+        // Momentum (p_movetune.h): the floor takes less of the speed each tic.
+        if (player && player->playerstate == PST_LIVE
+            && !(mo->flags & MF_CORPSE) && P_MoveTuning ())
+            friction = P_TunedFriction (friction, movemomentum);
 	mo->momx = FixedMul (mo->momx, friction);
 	mo->momy = FixedMul (mo->momy, friction);
     }

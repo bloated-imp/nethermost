@@ -17,26 +17,44 @@ static GpuTextureRef statsTexture;
 static std::vector<Vertex> overlayQuad;
 static GpuTextureRef overlayTexture;
 #endif
-// The render stretched over a target of targetWidth x targetHeight: the HUD's
-// place, then the upscale mode (settings.upscale) and screen pixels per render pixel.
+// Where the picture goes in a target (F4 "Aspect"): all of it, or a 4:3 box
+// in its middle, as wide as the height allows (as tall as the width allows
+// on a narrow one), the rest left black.
+static void pictureBox(int targetWidth,int targetHeight,int &x,int &y,int &w,int &h) {
+    x=y=0;w=targetWidth;h=targetHeight;
+    if(settings.aspect!=1)return;
+    w=std::min(targetWidth,(int)std::lround(targetHeight*4.0/3));
+    h=std::min(targetHeight,(int)std::lround(w*3.0/4));
+    x=(targetWidth-w)/2;y=(targetHeight-h)/2;
+}
+// The render stretched over a target of targetWidth x targetHeight (into its
+// picture box): the HUD's place, then the upscale mode (settings.upscale) and
+// screen pixels per render pixel; then PS1 dithering (settings.ps1Dither).
 static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const FrameView &view,int targetWidth,int targetHeight) {
+    int boxX,boxY,boxW,boxH;pictureBox(targetWidth,targetHeight,boxX,boxY,boxW,boxH);
+    bool bars=boxW!=targetWidth||boxH!=targetHeight;
     SDL_GPUColorTargetInfo info={};
-    info.texture=target;info.load_op=SDL_GPU_LOADOP_DONT_CARE;info.store_op=SDL_GPU_STOREOP_STORE;
+    info.texture=target;info.load_op=bars?SDL_GPU_LOADOP_CLEAR:SDL_GPU_LOADOP_DONT_CARE;info.store_op=SDL_GPU_STOREOP_STORE;
+    info.clear_color={0,0,0,1};
     SDL_GPURenderPass *pass=SDL_BeginGPURenderPass(command,&info,1,nullptr);
     SDL_BindGPUGraphicsPipeline(pass,presentPipeline);
-    float stretch[8]={view.uiX/width,view.uiY/height,view.uiWidth/width,view.uiHeight/height,
-                      (float)settings.upscale,(float)targetWidth/width,(float)targetHeight/height,
+    float stretch[12]={view.uiX/width,view.uiY/height,view.uiWidth/width,view.uiHeight/height,
+                      (float)settings.upscale,(float)boxW/width,(float)boxH/height,
 #ifdef DOOM_DEVTOOLS
-                      devGlitch()};
+                      devGlitch(),
 #else
-                      0};
+                      0,
 #endif
+                      (float)(settings.ps1Dither!=0),0,0,0};
     SDL_PushGPUFragmentUniformData(command,0,stretch,sizeof(stretch));
     SDL_PushGPUFragmentUniformData(command,1,&view.camera,sizeof(view.camera));
     SDL_GPUSampler *upscaled=settings.upscale==1?nearestClamp:linearClamp;
     SDL_GPUTextureSamplerBinding samplers[]={{colorTexture,upscaled},{bloomTexture,linearClamp},{hudTexture,linearClamp},{paletteLUT,nearestClamp}};
     SDL_BindGPUFragmentSamplers(pass,0,samplers,4);
+    if(bars) {SDL_GPUViewport box={(float)boxX,(float)boxY,(float)boxW,(float)boxH,0,1};SDL_SetGPUViewport(pass,&box);}
     SDL_DrawGPUPrimitives(pass,3,1,0,0);
+    // The overlays and the settings panel use the whole screen, bars and all.
+    if(bars) {SDL_GPUViewport whole={0,0,(float)targetWidth,(float)targetHeight,0,1};SDL_SetGPUViewport(pass,&whole);}
 #ifdef DOOM_DEVTOOLS
     if(!overlayQuad.empty()&&overlayTexture) {
         SDL_BindGPUGraphicsPipeline(pass,settingsPipeline);
@@ -390,9 +408,10 @@ void releaseReflection() {
 } // namespace gpu3d
 
 using namespace gpu3d;
-// The render size for a drawable: a percentage of it, or (scale above 100) a
-// fixed height no taller than the drawable, the width keeping its shape.
+// The render size for a drawable's picture box (pictureBox): a percentage of
+// it, or (scale above 100) a fixed height no taller than it, the width keeping its shape.
 static void renderSize(int drawableWidth,int drawableHeight,int &w,int &h) {
+    int boxX,boxY;pictureBox(drawableWidth,drawableHeight,boxX,boxY,drawableWidth,drawableHeight);
     if(settings.scale>100&&settings.scale<drawableHeight) {
         h=settings.scale;w=std::max(1,(int)std::lround((double)drawableWidth*h/drawableHeight));
     }

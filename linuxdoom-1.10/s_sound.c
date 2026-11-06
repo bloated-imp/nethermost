@@ -29,6 +29,7 @@ rcsid[] = "$Id: s_sound.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "i_system.h"
 #include "i_sound.h"
@@ -123,6 +124,10 @@ static boolean		mus_paused;
 
 // music currently being played
 static musicinfo_t*	mus_playing=0;
+// the map S_Start is changing the music for (empty otherwise), and the
+// map the playing song started on
+static char		music_map[9];
+static char		playing_map[9];
 
 // following is set
 //  by the defaults code in M_misc:
@@ -249,10 +254,17 @@ void S_Start(void)
     }	
   
   // HACK FOR COMMERCIAL
-  //  if (commercial && mnum > mus_e3m9)	
+  //  if (commercial && mnum > mus_e3m9)
   //      mnum -= mus_e3m9;
-  
+
+  // The map's name goes with its song, so a track the player supplies
+  // can be picked per map (platform/user_music.c).
+  if (gamemode == commercial)
+    sprintf(music_map, "MAP%02d", gamemap);
+  else
+    sprintf(music_map, "E%dM%d", gameepisode, gamemap);
   S_ChangeMusic(mnum, true);
+  music_map[0] = 0;
   
   nextcleanup = 15;
 }	
@@ -400,6 +412,12 @@ S_StartSoundAtVolume
     I_SoundAt(0, origin->x, origin->y, origin->z);
   else if (origin)
     I_SoundOwn();
+
+  // What makes it, for a sound pack's per-monster sounds (Game_SoundName):
+  // only a thing that thinks has a type; a sector's sound origin is a bare
+  // point (degenmobj_t) and has none.
+  if (origin && origin->thinker.function.acp1 == (actionf_p1)P_MobjThinker)
+    I_SoundFrom(origin->type, origin->player ? (int)origin->player->readyweapon : -1);
 
   // Assigns the handle to one of the channels in the
   //  mix/output buffer.
@@ -684,11 +702,15 @@ S_ChangeMusic
     else
 	music = &S_music[musicnum];
 
-    if (mus_playing == music)
+    // The same song carries on, unless the map changed: maps sharing a
+    // score can each have a track of their own.
+    if (mus_playing == music && !strcmp(playing_map, music_map))
 	return;
 
     // shutdown old music
     S_StopMusic();
+    snprintf(playing_map, sizeof(playing_map), "%s", music_map);
+    I_SetMusicName(music_map[0] ? music_map : NULL, music->name);
 
     // get lumpnum if neccessary
     if (!music->lumpnum)

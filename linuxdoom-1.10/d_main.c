@@ -79,6 +79,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include "d_main.h"
 #include "d_deh.h"
+#include "f_firetitle.h"
 
 //
 // D-DoomLoop()
@@ -106,6 +107,9 @@ boolean         respawnparm;	// checkparm of -respawn
 boolean         fastparm;	// checkparm of -fast
 boolean         classicmovement; // original player acceleration and friction
 boolean         strafeboost; // tuned movement, but held running diagonals build up DOOM's strafe-running
+// Movement tuning (p_movetune.h): walk, run, keyboard turn, momentum, view bob; 1 unchanged
+double          movewalk = 1, moverun = 1, moveturn = 1, movemomentum = 1, movebob = 1;
+double          movebobrate = 1, moveturnramp = 1;	// the bob's pace; the turn keys' ease to full speed
 
 boolean         drone;
 
@@ -432,6 +436,13 @@ char                    *pagename;
 //
 void D_PageTicker (void)
 {
+    // The fire title stays until a button is pressed: that opens the menu
+    // over it (M_Responder), and the fire burns on behind.
+    if (ps1title && !strcmp (pagename, "TITLEPIC"))
+    {
+	F_FireTitleTicker ();
+	return;
+    }
     if (--pagetic < 0)
 	D_AdvanceDemo ();
 }
@@ -443,6 +454,12 @@ void D_PageTicker (void)
 //
 void D_PageDrawer (void)
 {
+    // The PlayStation-style title in place of TITLEPIC (f_firetitle.h).
+    if (ps1title && !strcmp (pagename, "TITLEPIC"))
+    {
+	F_FireTitleDrawer ();
+	return;
+    }
     V_DrawPatch (0,0, 0, W_CacheLumpName(pagename, PU_CACHE));
 }
 
@@ -481,6 +498,8 @@ void D_AdvanceDemo (void)
 	else
 	    pagetic = 170;
 	pagename = "TITLEPIC";
+	if (ps1title)
+	    F_FireTitleStart ();
 	if ( gamemode == commercial )
 	  S_StartMusic(mus_dm2ttl);
 	else
@@ -495,6 +514,8 @@ void D_AdvanceDemo (void)
 	{
 	    pagetic = 35 * 11;
 	    pagename = "TITLEPIC";
+	    if (ps1title)
+		F_FireTitleStart ();
 	}
 	else
 	{

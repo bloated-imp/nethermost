@@ -1,6 +1,6 @@
 # Build output and the locally packaged app
 /build/
-/Play DERP.app/
+/Nethermost.app/
 /Play DOOM.app/
 /CMakeUserPresets.json
 /dist/

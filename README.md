@@ -1,3 +1,18 @@
+# Nethermost
+
+Nethermost is a fork of **DERP, the DOOM Engine Remaster Project —
+https://github.com/robongrui/derp**. It leans toward the feel of DOOM on the
+PlayStation: slower, darker and more like a horror game, with your own music
+tracks in place of the MIDI scores.
+Everything DERP does is still here; what Nethermost adds and plans is in
+[PS1-MOOD.md](PS1-MOOD.md).
+
+Nethermost is not DERP and is not made or endorsed by DERP's author. Please
+report Nethermost's bugs here, not upstream.
+
+The rest of this README is DERP's own, by its author, kept as written apart
+from the program names (Nethermost.exe, nethermost, nethermost-heretic).
+
 # DOOM Engine Remaster Project - DERP
 
 ## A few thoughts: 
@@ -128,7 +143,7 @@ Ready-to-play builds for macOS, Windows and Linux are on the
 [Releases page](https://github.com/robongrui/derp/releases). Each one
 includes Freedoom, so it plays straight away.
 
-On Windows start **Play DERP.exe**, on Linux **play-derp**, and put your own
+On Windows start **Nethermost.exe**, on Linux **nethermost**, and put your own
 `.wad` files in the `wads` folder next to it. On the Mac, choose your WAD
 folder when the app starts.
 
@@ -143,7 +158,7 @@ turn the music down or off in **Options → Sound Volume**.
 DERP plays Raven's Heretic as well, on the same 3D renderer, lighting, sound
 and music, and again worked out entirely from the WAD you load. Pick a
 Heretic WAD in the launcher (or drop it in the `wads` folder) and the game
-starts the Heretic program, `derp-heretic`, which ships next to the DOOM one.
+starts the Heretic program, `nethermost-heretic`, which ships next to the DOOM one.
 You need your own copy: the 2025 *Heretic + Hexen* release has both the new
 `heretic.wad` and the original DOS `HERETIC.WAD`, and both work.
 
@@ -1367,8 +1382,8 @@ Please don't commit or upload commercial WAD files to this repository.
 
 You need CMake 3.21+ and a C11/C++17 compiler (Apple Clang, Clang, GCC or
 Visual Studio 2022). SDL3 is downloaded automatically if it isn't installed.
-The build makes both programs, `doom` (`Play DERP.app` on the Mac) and
-`derp-heretic`; on the Mac the Heretic program goes inside the app.
+The build makes both programs, `doom` (`Nethermost.app` on the Mac) and
+`nethermost-heretic`; on the Mac the Heretic program goes inside the app.
 
 ```sh
 cmake -S . -B build/play -DCMAKE_BUILD_TYPE=Release -DDOOM_BUILD_SDL=ON \

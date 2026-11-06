@@ -11,6 +11,10 @@ void I_Mixer_StopSong(void);
 void I_Mixer_PauseSong(void);
 void I_Mixer_ResumeSong(void);
 void I_Mixer_SetMusicVolume(int volume);
+/* A recorded track (audio/track_stream.h) in place of a score until the
+   song is unregistered; played, paused and stopped as a score is. 0 if it
+   can't be read. */
+int I_Mixer_RegisterTrack(const char *path);
 /* Reads a .sf2 bank and puts it in use; 0 if it can't be read. */
 int I_Mixer_LoadSoundFont(const char *path);
 

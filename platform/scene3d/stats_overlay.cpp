@@ -138,7 +138,7 @@ void draw(Canvas &c,const StatsView &v,bool full,int renderW,int renderH,int dis
     c.text(format("%dX%d, RENDER %dX%d",displayW,displayH,renderW,renderH),pad,y,textColor);
     y+=line;
     const char *level=gamestate==GS_LEVEL?HU_LevelTitle():nullptr;
-    c.text(format("DERP %s  %s%s%s",DOOM_SHOWN_VERSION,Game_Title(),level&&*level?"  ":"",level?level:""),pad,y,dimColor);
+    c.text(format("Nethermost %s  %s%s%s",DOOM_SHOWN_VERSION,Game_Title(),level&&*level?"  ":"",level?level:""),pad,y,dimColor);
     y+=line+line/2;
     // The systems at work, their CPU time per frame and their worst frame (ms).
     int detailX=pad+smallFont::width("DISTURBANCES")+3*pad,timeX=canvasW-pad;

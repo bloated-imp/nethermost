@@ -12,6 +12,8 @@ comes from elsewhere, and its license.
 | [SDL](https://libsdl.org/) 3.4.18 | downloaded by `CMakeLists.txt`, linked into the program | zlib, with the notices in [`third_party/SDL3-NOTICES.txt`](third_party/SDL3-NOTICES.txt) |
 | [Nuked OPL3](https://github.com/nukeykt/Nuked-OPL3), Nuke.YKT | downloaded by `CMakeLists.txt`, linked into the program | GNU LGPL 2.1 or later |
 | [TinySoundFont](https://github.com/schellingb/TinySoundFont), Bernhard Schelling | downloaded by `CMakeLists.txt`, linked into the program | MIT |
+| [dr_libs](https://github.com/mackron/dr_libs) (dr_flac, dr_mp3, dr_wav), David Reid | downloaded by `CMakeLists.txt`, linked into the program to read the player's own music tracks and sound effects | public domain (Unlicense) or MIT-0 |
+| [stb_vorbis and stb_image's zlib decoder](https://github.com/nothings/stb), Sean Barrett | downloaded by `CMakeLists.txt`, linked into the program to read the player's own music tracks and sound effects, and the sound packs (.pk3) they come in | public domain or MIT |
 | [GeneralUser GS](https://schristiancollins.com/generaluser.php) 2.0.3, S. Christian Collins | SoundFont downloaded by `CMakeLists.txt`, shipped in `soundfonts/` | its own license, allowing use in software ([`soundfonts/GeneralUser-GS-LICENSE.txt`](https://github.com/mrbumpy409/GeneralUser-GS/blob/main/documentation/LICENSE.txt)) |
 | [Freedoom](https://freedoom.github.io/) 0.13.0 | game data in the downloads only, not in this repository | BSD 3-Clause |
 | [12dicts](http://wordlist.aspell.net/12dicts/) 6.0.2, Alan Beale | the word list `2of12`, cut to plain lowercase words, in `scp_7179_b/words/` and the episode's WAD | public domain, acknowledgment requested ([`scp_7179_b/words/README.md`](scp_7179_b/words/README.md)) |
@@ -41,7 +43,7 @@ the Heretic source under GPL 3.
 
 **SDL, Nuked OPL3, TinySoundFont and GeneralUser GS** are not in this
 repository; CMake downloads the pinned versions while building. Each release
-has a `DERP-source.tar.gz` with this repository and the exact library
+has a `Nethermost-source.tar.gz` with this repository and the exact library
 sources and SoundFont the downloads were built from, so the game, with or
 without changes to those libraries, can be rebuilt without an internet
 connection (see `dependencies/README.txt` inside it).

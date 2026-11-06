@@ -116,6 +116,45 @@ void saveWeaponPlace() {
     const pspdef_t &weapon=players[displayplayer].psprites[0];
     oldWeaponX=weapon.sx;oldWeaponY=weapon.sy;oldWeaponSaved=weapon.state!=nullptr;
 }
+// The light around the eye on a relit screen quad (the weapon, the face):
+// a restrained, capped share of it, so nearby lamps tint the artwork
+// without washing it out. Relit, the lights that reach it too: the weapon
+// where the shader places it, about ten units ahead of the eye, the face
+// (MODE_FACE) at the eye; the flashlight only tints them. With bake-only lights the static light's
+// direction comes packed as for sprites.
+static void lightScreenQuad(std::vector<Vertex> &quad,const Uniforms &camera,player_t *player,float light,bool relit,bool face) {
+    StaticSample statics;
+    auto baked=bakedLightAt(camera.eye[0],camera.eye[1],camera.eye[2],player->mo->subsector->sector,&statics);
+    for(float &c:baked)c=std::min(0.5f,c*0.4f);
+    unsigned tint=packedLampTint(statics,light);
+    for(auto &vertex:quad) {vertex.red=baked[0];vertex.green=baked[1];vertex.blue=baked[2];vertex.lampTint=tint;}
+    if(!relit)return;
+    float low[3],high[3];unsigned mask[2]={},packedStatics=0;
+    // Where the shader places it: the weapon ahead and below, the face (MODE_FACE) at the eye.
+    for(int c=0;c<3;++c) {
+        float at=face?camera.eye[c]+camera.forward[c]*2:camera.eye[c]+camera.forward[c]*10-camera.up[c]*5;
+        low[c]=at-12;high[c]=at+12;
+    }
+    for(unsigned n=0;n<flashes.count;++n) {
+        const auto &flash=flashes.lights[n];
+        if(!fogOnly[n]&&flash.direction[3]<=0&&doom_flash_reaches_bounds(&flash,low,high))mask[n/32]|=1u<<(n%32);
+    }
+    float towards=std::sqrt(statics.towards[0]*statics.towards[0]+statics.towards[1]*statics.towards[1]+statics.towards[2]*statics.towards[2]);
+    if(bakeOnlyActive&&statics.amount>0&&towards>1e-6f) {
+        for(int c=0;c<3;++c)packedStatics|=(unsigned)std::lround((statics.towards[c]/towards*0.5f+0.5f)*255)<<(8*c);
+        packedStatics|=(unsigned)std::lround(std::clamp(towards/statics.amount,0.0f,1.0f)*255)<<24;
+    }
+    for(auto &vertex:quad) {std::copy(mask,mask+2,vertex.lightMask);vertex.statics=packedStatics;}
+}
+// The WAD lump a cached patch came from (the status bar keeps patches, not
+// lumps); -1 for one made in code.
+static int lumpOfPatch(const void *patch) {
+    static std::map<const void*,int> known;
+    auto found=known.find(patch);if(found!=known.end())return found->second;
+    int lump=-1;
+    for(int i=0;i<numlumps&&lump<0;++i)if(lumpcache[i]==patch)lump=i;
+    return known[patch]=lump;
+}
 std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
     std::vector<SpriteDraw> draws;
     player_t *player=&players[displayplayer];
@@ -143,37 +182,27 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
                 seamLightAt(camera.eye[0],camera.eye[1],player->mo->subsector->sector,lighting(player->mo->subsector->sector))));
         screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,image.height/100.0f,u0,0,u1,image.height,light,
             MODE_SCREEN|MODE_SPRITE|(relit?MODE_RELIT|(sf.flip[0]?MODE_FLIPPED:0u):0u));
-        // The weapon takes a restrained, capped share of the light around the
-        // eye so nearby lamps tint it without washing out the artwork.
-        if(!bright) {
-            StaticSample statics;
-            auto baked=bakedLightAt(camera.eye[0],camera.eye[1],camera.eye[2],player->mo->subsector->sector,&statics);
-            for(float &c:baked)c=std::min(0.5f,c*0.4f);
-            unsigned tint=packedLampTint(statics,light);
-            for(auto &vertex:weapon) {vertex.red=baked[0];vertex.green=baked[1];vertex.blue=baked[2];vertex.lampTint=tint;}
-            if(relit) {
-                // Lights that reach the weapon, which the shader places about
-                // ten units ahead of the eye; the flashlight only tints it.
-                // With bake-only lights the static light's direction comes
-                // packed as for sprites.
-                float low[3],high[3];unsigned mask[2]={},packedStatics=0;
-                for(int c=0;c<3;++c) {
-                    float at=camera.eye[c]+camera.forward[c]*10-camera.up[c]*5;
-                    low[c]=at-12;high[c]=at+12;
-                }
-                for(unsigned n=0;n<flashes.count;++n) {
-                    const auto &light=flashes.lights[n];
-                    if(!fogOnly[n]&&light.direction[3]<=0&&doom_flash_reaches_bounds(&light,low,high))mask[n/32]|=1u<<(n%32);
-                }
-                float towards=std::sqrt(statics.towards[0]*statics.towards[0]+statics.towards[1]*statics.towards[1]+statics.towards[2]*statics.towards[2]);
-                if(bakeOnlyActive&&statics.amount>0&&towards>1e-6f) {
-                    for(int c=0;c<3;++c)packedStatics|=(unsigned)std::lround((statics.towards[c]/towards*0.5f+0.5f)*255)<<(8*c);
-                    packedStatics|=(unsigned)std::lround(std::clamp(towards/statics.amount,0.0f,1.0f)*255)<<24;
-                }
-                for(auto &vertex:weapon) {std::copy(mask,mask+2,vertex.lightMask);vertex.statics=packedStatics;}
-            }
-        }
+        if(!bright)lightScreenQuad(weapon,camera,player,light,relit,false);
         draws.push_back({&image,std::move(weapon)});
+    }
+    // The status bar's face, relit as the weapon is and drawn over the bar
+    // (overHud). MODE_FACE turns its normals round in the shader to face
+    // ahead, where it looks: the room ahead lights it, and a lamp or a
+    // muzzle flash to one side lights that side of it.
+    int faceX=0,faceY=0;
+    const void *face=settings.faceLighting&&settings.weaponLighting&&player->mo?ST_Face(&faceX,&faceY):nullptr;
+    int faceLump=face?lumpOfPatch(face):-1;
+    if(faceLump>=0) {
+        Image &image=weaponImage(faceLump);
+        float x=(float)(faceX-image.left),y=(float)(faceY-image.top);
+        sector_t *sector=player->mo->subsector->sector;
+        float light=sunLightAt(camera.eye[0],camera.eye[1],sector,flowLightAt(camera.eye[0],camera.eye[1],sector,
+                seamLightAt(camera.eye[0],camera.eye[1],sector,lighting(sector))));
+        std::vector<Vertex> quad;
+        screenQuad(quad,x/160-1,1-y/100,image.width/160.0f,image.height/100.0f,0,0,(float)image.width,(float)image.height,light,
+            MODE_SCREEN|MODE_SPRITE|MODE_RELIT|MODE_FACE);
+        lightScreenQuad(quad,camera,player,light,true,true);
+        draws.push_back({&image,std::move(quad),true});
     }
     return draws;
 }

@@ -58,6 +58,8 @@ extern  boolean	respawnparm;	// checkparm of -respawn
 extern  boolean	fastparm;	// checkparm of -fast
 extern  boolean classicmovement;
 extern  boolean strafeboost;
+extern  double  movewalk, moverun, moveturn, movemomentum, movebob;	// p_movetune.h
+extern  double  movebobrate, moveturnramp;
 
 extern  boolean	devparm;	// DEBUG: launched with -devparm
 

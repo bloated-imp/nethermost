@@ -173,6 +173,11 @@ game_decoration Game_Decoration(int sprite);
 /* Sound effects: I_GetSfxLumpNum (i_sound.h) is the game's, since lump
    names differ; Game_SfxLoaded tells the game where an effect's data sits. */
 void Game_SfxLoaded(int id, void *data);
+/* The name a ZDoom-style sound pack's SNDINFO gives effect id when a thing
+   of this type plays it (imp/pain for an imp's pain), weapon the player's
+   weapon when a player does (else -1): user_sounds.c then plays the pack's
+   sound for that name. NULL when the game has none for it. */
+const char *Game_SoundName(int id, int type, int weapon);
 /* How much farther than the game's usual range an effect carries: 1 for
    most, more for the loud ones (gunfire, explosions), heard far off under
    the natural falloff. */

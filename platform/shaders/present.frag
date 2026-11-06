@@ -6,8 +6,9 @@ layout(set=2,binding=1) uniform sampler2D bloom;
 layout(set=2,binding=2) uniform sampler2D hud;
 layout(set=2,binding=3) uniform sampler3D paletteLUT;
 // hudRect: the HUD's place; upscale: x the mode (0 smooth, 1 crisp, 2 sharp
-// bilinear), yz screen pixels per render pixel, w a local dev tool's glitch (0 off).
-layout(std140,set=3,binding=0) uniform Stretch { vec4 hudRect; vec4 upscale; };
+// bilinear), yz screen pixels per render pixel, w a local dev tool's glitch (0 off);
+// retro: x PS1 dithering (ps1Dither) on.
+layout(std140,set=3,binding=0) uniform Stretch { vec4 hudRect; vec4 upscale; vec4 retro; };
 layout(std140,set=3,binding=1) uniform Camera CAMERA_BLOCK c;
 layout(location=0) out vec4 outColor;
 // Phobos (c.phobos.z): frost creeping in over the helmet's visor from its rim, crystals reaching
@@ -58,6 +59,17 @@ vec3 glitch(vec3 color) {
 #include "overlay_cover.glsl"
 #include "rush.glsl"
 #include "eyes.glsl"
+// PS1 dithering: the PlayStation drew into a 15-bit framebuffer through a 4x4
+// ordered dither, each 8-bit channel offset by -4 to +3 by its pixel's place and
+// cut to 5 bits. On the render's own pixels, so at 240p it is as coarse as theirs.
+// Rounded to the nearest of the 32 steps rather than cut down as the console did,
+// which would leave DOOM's dark rooms about a tenth darker.
+vec3 ps1Dither(vec3 color) {
+    const float offsets[16]=float[16](-4.0,0.0,-3.0,1.0, 2.0,-2.0,3.0,-1.0, -3.0,1.0,-4.0,0.0, 3.0,-1.0,2.0,-2.0);
+    ivec2 at=ivec2(floor(vUV*vec2(textureSize(image,0))))&3;
+    vec3 level=saturate((floor(saturate(color)*255.0+0.5)+offsets[at.y*4+at.x])/255.0);
+    return floor(level*31.0+0.5)/31.0;
+}
 // Sharp bilinear: each render pixel stays flat, and the linear sampler blends
 // only across the screen pixel straddling the step to the next.
 vec2 sharpUV(vec2 uv) {
@@ -92,6 +104,8 @@ void main() {
     if(c.rush.w>0.0) color.rgb=rush(color.rgb,uv);
     if(c.eyes.x>0.0||c.eyes.y>0.0) color.rgb=closedEyes(color.rgb);
     if(upscale.w>0.0) color.rgb=glitch(color.rgb);
+    // Before the palette: its table has the same 32 steps, so a dithered colour finds its entry exactly.
+    if(retro.x>0.0) color.rgb=ps1Dither(color.rgb);
     if(c.materials.w>0.0) color.rgb=texelFetch(paletteLUT,ivec3(round(saturate(color.rgb)*31.0)),0).rgb;
     outColor=vec4(color.rgb,1.0);
 }

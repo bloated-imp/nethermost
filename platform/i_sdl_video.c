@@ -111,12 +111,12 @@ static void capture_mouse(boolean value)
 
 #if !defined(__APPLE__) && !defined(_WIN32)
 // The Mac app and the Windows program carry their icon; on Linux it sits
-// beside the program as play-derp.png.
+// beside the program as nethermost.png.
 static void set_window_icon(void)
 {
     const char *folder = SDL_GetBasePath();
     char *path = NULL;
-    if (!folder || SDL_asprintf(&path, "%splay-derp.png", folder) < 0) return;
+    if (!folder || SDL_asprintf(&path, "%snethermost.png", folder) < 0) return;
     SDL_Surface *icon = SDL_LoadPNG(path);
     SDL_free(path);
     if (!icon) return;
@@ -140,7 +140,7 @@ void I_InitGraphics(void)
     // Render checks draw off screen: no window comes up over the user's work
     if (M_CheckParm("-rendercheck")) flags |= SDL_WINDOW_HIDDEN;
     char title[128];
-    snprintf(title, sizeof(title), "%s — Esc: menu · F11: fullscreen · Cmd-Q: quit", Game_Title());
+    snprintf(title, sizeof(title), "Nethermost · %s — Esc: menu · F11: fullscreen · Cmd-Q: quit", Game_Title());
     window = SDL_CreateWindow(title, width, height, flags);
     if (!window)
         I_Error("Could not open the game window: %s", SDL_GetError());

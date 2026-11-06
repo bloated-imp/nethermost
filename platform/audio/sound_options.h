@@ -10,6 +10,8 @@ void I_SetSoundOptions(int acoustics, float amount, int walls, int distance, int
    1 a cubic, 2 a windowed sinc (see audio/resample.h). Past held samples,
    treble (0-2) is how much made-up treble goes above them (audio/treble.h). */
 void I_SetSfxPlayback(int mode, float treble);
+/* Whether the sound files the player supplies play (user_sounds.c), or the WAD's own. */
+void I_SetUserSounds(int enabled);
 
 /* The made-up sounds (audio/made_bank.h). impacts: sparks, dying lamps and
    screens, breaking glass; glass 0 the shatter, 1 the fracture; ambient: the

@@ -137,6 +137,10 @@ void applySettings() {
     classicaim=settings.classicAim!=0;
     classicmovement=settings.movement==1||M_CheckParm((char*)"-classicmovement");
     strafeboost=settings.movement==2;
+    movewalk=settings.moveWalk;moverun=settings.moveRun;moveturn=settings.moveTurn;
+    movemomentum=settings.moveMomentum;movebob=settings.moveBob;
+    movebobrate=settings.moveBobRate;moveturnramp=settings.moveTurnRamp;
+    ps1title=settings.ps1Title!=0;
     Game_SetPhobos(settings.phobos);
     Game_SetWeather(settings.weather);
     Game_SetPhobosRules(settings.phobosPlayer,settings.phobosEnemies,settings.phobosAir,settings.phobosRecoil);
@@ -148,6 +152,7 @@ void applySettings() {
     applyWindowSize();
     I_SetSoundOptions(settings.roomAcoustics,settings.reverbAmount,settings.muffleWalls,settings.muffleDistance,settings.naturalFalloff);
     I_SetSfxPlayback(settings.sfxResampling,settings.sfxTreble);
+    I_SetUserSounds(settings.userSounds);
     I_SetMadeSounds(settings.madeImpacts,settings.glassSound,settings.ambience,settings.ambienceAmount,settings.footsteps);
     I_SetAlternativeComputerSounds(settings.alternativeComputerSounds);
     I_AmbienceShowGlass(settings.accelerated&&settings.windowGlass);
@@ -658,7 +663,9 @@ static int renderArg(const char *name,int fallback) {
 static int renderFramesTaken=0;
 bool renderCheckDue() {
     int after=renderArg("-rendertic",10)+renderFramesTaken*std::max(1,renderArg("-renderevery",1));
-    bool due=M_CheckParm((char*)"-rendercheck")&&worldPending&&gametic>after;
+    // -rendertitle: the title page instead of a level (with -rendertic, a moment of the fire title).
+    bool shown=worldPending||(M_CheckParm((char*)"-rendertitle")&&gamestate==GS_DEMOSCREEN);
+    bool due=M_CheckParm((char*)"-rendercheck")&&shown&&gametic>after;
     if(due&&M_CheckParm((char*)"-rendersettings")&&!I_Render3DSettingsOpen()) {I_Render3DSettingsMenu();return false;}
     return due;
 }
@@ -703,7 +710,7 @@ void updateTitle(int width,int height,const char *renderer) {
     if(now-titleTime>1000000000) {
         fps=frameCount*1e9/(now-titleTime);frameCount=0;titleTime=now;
         char rate[32]="";if(settings.fps==1)snprintf(rate,sizeof(rate)," · %.0f fps",fps);
-        char title[256];snprintf(title,sizeof(title),"%s · %s · %dx%d%s%s · F4: graphics · F7: screenshot · Esc: menu",
+        char title[256];snprintf(title,sizeof(title),"Nethermost · %s · %s · %dx%d%s%s · F4: graphics · F7: screenshot · Esc: menu",
             Game_Title(),settings.accelerated?renderer:"Classic",width,height,rate,
             Game_HasEffect(GAME_EFFECT_FLASHLIGHT)?" · F: flashlight":"");
         SDL_SetWindowTitle(gameWindow,title);

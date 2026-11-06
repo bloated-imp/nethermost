@@ -1146,6 +1146,18 @@ void ST_diffDraw(void)
     ST_drawWidgets(false);
 }
 
+// The face on the status bar now, for the 3D renderer to relight as it
+// does the weapon (scene3d/weapon.cpp): its patch and where it is drawn;
+// NULL while the status bar is off.
+const void* ST_Face (int* x, int* y)
+{
+    if (!st_statusbaron || !faces[st_faceindex])
+	return NULL;
+    *x = ST_FACESX;
+    *y = ST_FACESY;
+    return faces[st_faceindex];
+}
+
 void ST_Drawer (boolean fullscreen, boolean refresh)
 {
   

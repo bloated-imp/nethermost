@@ -9,10 +9,10 @@ project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 platform=$1
 build_dir=$2
 freedoom_dir=$3
-stage="$4/DERP-$platform"
+stage="$4/Nethermost-$platform"
 
 program=
-for candidate in "$build_dir/Release/Play DERP.exe" "$build_dir/Play DERP.exe" "$build_dir/play-derp"; do
+for candidate in "$build_dir/Release/Nethermost.exe" "$build_dir/Nethermost.exe" "$build_dir/nethermost"; do
     if [ -f "$candidate" ]; then
         program=$candidate
         break
@@ -28,27 +28,27 @@ mkdir -p "$stage/wads" "$stage/licenses/Freedoom"
 cp "$program" "$stage/"
 # The Heretic program beside it: the launcher hands Heretic WADs over.
 heretic=
-for candidate in "$(dirname -- "$program")/derp-heretic.exe" "$(dirname -- "$program")/derp-heretic"; do
+for candidate in "$(dirname -- "$program")/nethermost-heretic.exe" "$(dirname -- "$program")/nethermost-heretic"; do
     if [ -f "$candidate" ]; then
         heretic=$candidate
         break
     fi
 done
 if [ -z "$heretic" ]; then
-    echo "Build derp-heretic too; see BUILDING.md." >&2
+    echo "Build nethermost-heretic too; see BUILDING.md." >&2
     exit 1
 fi
 cp "$heretic" "$stage/"
 # Windows programs carry their icon; on Linux the window icon sits beside the game.
 if [ "$platform" = linux ]; then
-    cp "$(dirname -- "$program")/play-derp.png" "$stage/"
+    cp "$(dirname -- "$program")/nethermost.png" "$stage/"
 fi
 cp "$freedoom_dir/freedoom1.wad" "$stage/default.wad"
 # Episode 0.5's map, generated at build time beside the game.
 if [ -f "$(dirname -- "$program")/library.wad" ]; then
     cp "$(dirname -- "$program")/library.wad" "$stage/"
 fi
-cp "$project_dir/README.md" "$project_dir/PLAY.md" "$stage/"
+cp "$project_dir/README.md" "$project_dir/PLAY.md" "$project_dir/PS1-MOOD.md" "$stage/"
 cp "$project_dir/LICENSE.TXT" "$stage/licenses/GPL-3.txt"
 cp "$project_dir/NOTICE.txt" "$stage/licenses/NOTICE.txt"
 cp "$project_dir/THIRD_PARTY.md" "$stage/licenses/THIRD_PARTY.md"
@@ -58,6 +58,18 @@ cp "$build_dir/_deps/nukedopl3-src/LICENSE" "$stage/licenses/Nuked-OPL3-LGPL-2.1
 cp "$build_dir/_deps/tinysoundfont-src/LICENSE" "$stage/licenses/TinySoundFont-MIT.txt"
 mkdir -p "$stage/soundfonts"
 cp "$build_dir/soundfonts/GeneralUser-GS.sf2" "$build_dir/soundfonts/GeneralUser-GS-LICENSE.txt" "$stage/soundfonts/"
+# The music folder for the player's own tracks: only the playlist ships, no music.
+mkdir -p "$stage/music"
+cp "$project_dir/music/playlist.txt" "$stage/music/"
+# The sounds folder for the player's own sound effects or a sound pack: empty but for a note.
+mkdir -p "$stage/sounds"
+cat > "$stage/sounds/PUT-SOUNDS-HERE.txt" <<'NOTE'
+Put sound effects here to play in place of the WAD's: files named after the
+sound (DSPISTOL.ogg, DSPOPAIN.flac), or a ZDoom-style sound pack (.pk3) as it
+is. A loose file wins over one in a pack. See PS1-MOOD.md.
+NOTE
+cp "$build_dir/_deps/drlibs-src/LICENSE" "$stage/licenses/dr_libs.txt" 2>/dev/null || true
+cp "$build_dir/_deps/stb-src/LICENSE" "$stage/licenses/stb.txt" 2>/dev/null || true
 for item in COPYING.txt CREDITS.txt CREDITS-MUSIC.txt README.html; do
     cp "$freedoom_dir/$item" "$stage/licenses/Freedoom/$item"
 done

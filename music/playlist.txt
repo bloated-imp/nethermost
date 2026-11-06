@@ -1,0 +1,32 @@
+# Music for your own tracks - PlayStation-style soundtrack
+#
+# No music ships with the game. To hear the PlayStation soundtrack, buy the
+# official album by its composer, Aubrey Hodges ("Doom PlayStation: Official
+# Soundtrack", released by him in 2012), and drop the downloaded files into
+# this folder as they are. FLAC, Ogg, MP3 and WAV all play.
+#
+# Each line is a map (or screen), "=", then the track's title. The game plays
+# the first file here whose name contains that title, so the track numbers and
+# artist name in the downloaded file names don't matter. A full file name works
+# too, and so does a file named after the map itself (E1M1.flac).
+#
+# The assignments follow the PlayStation version, which gave each level one of
+# Hodges' tracks. A map with no track here, or whose file isn't found, plays
+# the WAD's own MIDI score as usual. Edit freely; lines starting with # are
+# ignored. Start the game with -nousermusic to switch all of this off.
+
+# Screens
+D_INTRO  = Main Theme              # Title screen
+D_INTER  = Level Complete          # Level complete stats
+D_VICTOR = Finale                  # Episode end
+
+# Knee-Deep In The Dead (as on the PlayStation)
+E1M1 = Retribution Dawns           # Hangar
+E1M2 = The Broken Ones             # Nuclear Plant
+E1M3 = Sanity's Edge               # Toxin Refinery
+E1M4 = Hell's Churn                # Command Control
+E1M5 = Digitized Pain              # Phobos Lab
+E1M6 = Corrupted Core              # Central Processing
+E1M7 = Mind Massacre               # Computer Station
+E1M8 = Mutation                    # Phobos Anomaly
+E1M9 = Creeping Brutality          # Military Base

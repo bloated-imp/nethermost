@@ -262,6 +262,66 @@ void Game_SfxLoaded(int id, void *data)
     S_sfx[id].data = data;
 }
 
+/* ZDoom's names for what each monster plays (its actors' SeeSound,
+   PainSound and so on), so a sound pack's SNDINFO can give one monster a
+   sound of its own: DOOM's imp and zombies share DSPOPAIN, a pack may give
+   the imp imp/pain. Shots and blasts are their missile's. */
+static const struct { int type, id; const char *name; } sound_names[] = {
+    {MT_POSSESSED, sfx_posit1, "grunt/sight"}, {MT_POSSESSED, sfx_posit2, "grunt/sight"}, {MT_POSSESSED, sfx_posit3, "grunt/sight"},
+    {MT_POSSESSED, sfx_posact, "grunt/active"}, {MT_POSSESSED, sfx_popain, "grunt/pain"}, {MT_POSSESSED, sfx_pistol, "grunt/attack"},
+    {MT_POSSESSED, sfx_podth1, "grunt/death"}, {MT_POSSESSED, sfx_podth2, "grunt/death"}, {MT_POSSESSED, sfx_podth3, "grunt/death"},
+    {MT_SHOTGUY, sfx_posit1, "shotguy/sight"}, {MT_SHOTGUY, sfx_posit2, "shotguy/sight"}, {MT_SHOTGUY, sfx_posit3, "shotguy/sight"},
+    {MT_SHOTGUY, sfx_posact, "shotguy/active"}, {MT_SHOTGUY, sfx_popain, "shotguy/pain"}, {MT_SHOTGUY, sfx_shotgn, "shotguy/attack"},
+    {MT_SHOTGUY, sfx_podth1, "shotguy/death"}, {MT_SHOTGUY, sfx_podth2, "shotguy/death"}, {MT_SHOTGUY, sfx_podth3, "shotguy/death"},
+    {MT_CHAINGUY, sfx_posit1, "chainguy/sight"}, {MT_CHAINGUY, sfx_posit2, "chainguy/sight"}, {MT_CHAINGUY, sfx_posit3, "chainguy/sight"},
+    {MT_CHAINGUY, sfx_posact, "chainguy/active"}, {MT_CHAINGUY, sfx_popain, "chainguy/pain"}, {MT_CHAINGUY, sfx_shotgn, "chainguy/attack"},
+    {MT_CHAINGUY, sfx_podth1, "chainguy/death"}, {MT_CHAINGUY, sfx_podth2, "chainguy/death"}, {MT_CHAINGUY, sfx_podth3, "chainguy/death"},
+    {MT_WOLFSS, sfx_sssit, "wolfss/sight"}, {MT_WOLFSS, sfx_posact, "wolfss/active"}, {MT_WOLFSS, sfx_popain, "wolfss/pain"},
+    {MT_WOLFSS, sfx_ssdth, "wolfss/death"}, {MT_WOLFSS, sfx_shotgn, "wolfss/attack"},
+    {MT_TROOP, sfx_bgsit1, "imp/sight"}, {MT_TROOP, sfx_bgsit2, "imp/sight"}, {MT_TROOP, sfx_bgact, "imp/active"},
+    {MT_TROOP, sfx_popain, "imp/pain"}, {MT_TROOP, sfx_bgdth1, "imp/death"}, {MT_TROOP, sfx_bgdth2, "imp/death"},
+    {MT_TROOP, sfx_claw, "imp/melee"}, {MT_TROOPSHOT, sfx_firsht, "imp/attack"}, {MT_TROOPSHOT, sfx_firxpl, "imp/shotx"},
+    {MT_SERGEANT, sfx_sgtsit, "demon/sight"}, {MT_SERGEANT, sfx_dmact, "demon/active"}, {MT_SERGEANT, sfx_dmpain, "demon/pain"},
+    {MT_SERGEANT, sfx_sgtdth, "demon/death"}, {MT_SERGEANT, sfx_sgtatk, "demon/melee"},
+    {MT_SHADOWS, sfx_sgtsit, "spectre/sight"}, {MT_SHADOWS, sfx_dmact, "spectre/active"}, {MT_SHADOWS, sfx_dmpain, "spectre/pain"},
+    {MT_SHADOWS, sfx_sgtdth, "spectre/death"}, {MT_SHADOWS, sfx_sgtatk, "spectre/melee"},
+    {MT_HEAD, sfx_cacsit, "caco/sight"}, {MT_HEAD, sfx_dmact, "caco/active"}, {MT_HEAD, sfx_dmpain, "caco/pain"},
+    {MT_HEAD, sfx_cacdth, "caco/death"}, {MT_HEADSHOT, sfx_firsht, "caco/attack"}, {MT_HEADSHOT, sfx_firxpl, "caco/shotx"},
+    {MT_BRUISER, sfx_brssit, "baron/sight"}, {MT_BRUISER, sfx_dmact, "baron/active"}, {MT_BRUISER, sfx_dmpain, "baron/pain"},
+    {MT_BRUISER, sfx_brsdth, "baron/death"}, {MT_BRUISER, sfx_claw, "baron/melee"},
+    {MT_KNIGHT, sfx_kntsit, "knight/sight"}, {MT_KNIGHT, sfx_dmact, "knight/active"}, {MT_KNIGHT, sfx_dmpain, "knight/pain"},
+    {MT_KNIGHT, sfx_kntdth, "knight/death"}, {MT_KNIGHT, sfx_claw, "baron/melee"},
+    {MT_BRUISERSHOT, sfx_firsht, "baron/attack"}, {MT_BRUISERSHOT, sfx_firxpl, "baron/shotx"},
+    {MT_SKULL, sfx_dmact, "skull/active"}, {MT_SKULL, sfx_dmpain, "skull/pain"}, {MT_SKULL, sfx_firxpl, "skull/death"},
+    {MT_SKULL, sfx_sklatk, "skull/melee"},
+    {MT_UNDEAD, sfx_skesit, "skeleton/sight"}, {MT_UNDEAD, sfx_skeact, "skeleton/active"}, {MT_UNDEAD, sfx_popain, "skeleton/pain"},
+    {MT_UNDEAD, sfx_skedth, "skeleton/death"}, {MT_UNDEAD, sfx_skeswg, "skeleton/swing"}, {MT_UNDEAD, sfx_skepch, "skeleton/melee"},
+    {MT_TRACER, sfx_skeatk, "skeleton/attack"}, {MT_TRACER, sfx_barexp, "skeleton/tracex"},
+    {MT_FATSO, sfx_mansit, "fatso/sight"}, {MT_FATSO, sfx_posact, "fatso/active"}, {MT_FATSO, sfx_mnpain, "fatso/pain"},
+    {MT_FATSO, sfx_mandth, "fatso/death"}, {MT_FATSO, sfx_manatk, "fatso/raiseguns"},
+    {MT_FATSHOT, sfx_firsht, "fatso/attack"}, {MT_FATSHOT, sfx_firxpl, "fatso/shotx"},
+    {MT_BABY, sfx_bspsit, "baby/sight"}, {MT_BABY, sfx_bspact, "baby/active"}, {MT_BABY, sfx_dmpain, "baby/pain"},
+    {MT_BABY, sfx_bspdth, "baby/death"}, {MT_BABY, sfx_bspwlk, "baby/walk"},
+    {MT_ARACHPLAZ, sfx_plasma, "baby/attack"}, {MT_ARACHPLAZ, sfx_firxpl, "baby/shotx"},
+    {MT_PAIN, sfx_pesit, "pain/sight"}, {MT_PAIN, sfx_dmact, "pain/active"}, {MT_PAIN, sfx_pepain, "pain/pain"},
+    {MT_PAIN, sfx_pedth, "pain/death"},
+    {MT_CYBORG, sfx_cybsit, "cyber/sight"}, {MT_CYBORG, sfx_dmact, "cyber/active"}, {MT_CYBORG, sfx_dmpain, "cyber/pain"},
+    {MT_CYBORG, sfx_cybdth, "cyber/death"}, {MT_CYBORG, sfx_hoof, "cyber/hoof"},
+    {MT_SPIDER, sfx_spisit, "spider/sight"}, {MT_SPIDER, sfx_dmact, "spider/active"}, {MT_SPIDER, sfx_dmpain, "spider/pain"},
+    {MT_SPIDER, sfx_spidth, "spider/death"}, {MT_SPIDER, sfx_shotgn, "spider/attack"}, {MT_SPIDER, sfx_metal, "spider/walk"},
+    {MT_VILE, sfx_vilsit, "vile/sight"}, {MT_VILE, sfx_vilact, "vile/active"}, {MT_VILE, sfx_vipain, "vile/pain"},
+    {MT_VILE, sfx_vildth, "vile/death"}, {MT_VILE, sfx_vilatk, "vile/start"}, {MT_VILE, sfx_barexp, "vile/stop"},
+};
+
+const char *Game_SoundName(int id, int type, int weapon)
+{
+    // The chaingun fires DOOM's pistol sound; a pack may give it its own.
+    if (type == MT_PLAYER && id == sfx_pistol && weapon == wp_chaingun) return "weapons/chngun";
+    for (size_t i = 0; i < sizeof(sound_names)/sizeof(sound_names[0]); ++i)
+	if (sound_names[i].type == type && sound_names[i].id == id) return sound_names[i].name;
+    return NULL;
+}
+
 /* Gunshots and blasts: a gunshot is a deafening crack up close and carries
    across a courtyard and beyond. The monsters' guns are the player's. */
 float Game_SoundCarry(int id)

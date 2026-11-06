@@ -197,6 +197,7 @@ void drawOverlays(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
         float blend[36]={};std::copy(weaponProbe,weaponProbe+24,blend+4);
         SDL_PushGPUFragmentUniformData(command,3,blend,sizeof(blend));
         for(const auto &draw:weapons) {
+            if(draw.overHud)continue;
             SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),linearRepeat},{paletteTexture,nearestClamp},{gpu(draw.image->texture),linearRepeat}};
             SDL_BindGPUFragmentSamplers(pass,0,image,3);drawVertices(pass,draw.vertices);
         }
@@ -205,6 +206,20 @@ void drawOverlays(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
     SDL_GPUTextureSamplerBinding hudImage={hudTexture,nearestClamp};
     SDL_BindGPUFragmentSamplers(pass,0,&hudImage,1);
     drawVertices(pass,hud);
+    // The relit face over the status bar (its normals turned to face ahead
+    // in the shader, MODE_FACE), with what the weapon sees around it.
+    bool faces=false;
+    for(const auto &draw:weapons)faces=faces||draw.overHud;
+    if(worldPending&&faces) {
+        SDL_BindGPUGraphicsPipeline(pass,depth?weaponPipeline:overlayWeaponPipeline);bindWorld(pass,nullptr);
+        float blend[36]={};std::copy(weaponProbe,weaponProbe+24,blend+4);
+        SDL_PushGPUFragmentUniformData(command,3,blend,sizeof(blend));
+        for(const auto &draw:weapons) {
+            if(!draw.overHud)continue;
+            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),nearestClamp},{paletteTexture,nearestClamp},{gpu(draw.image->texture),nearestClamp}};
+            SDL_BindGPUFragmentSamplers(pass,0,image,3);drawVertices(pass,draw.vertices);
+        }
+    }
     if(!cross.empty()) {
         setView(pass,view.worldX,view.worldY,view.worldW,view.worldH,&full);
         SDL_BindGPUGraphicsPipeline(pass,depth?solidPipeline:overlaySolidPipeline);drawVertices(pass,cross);

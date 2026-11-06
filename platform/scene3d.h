@@ -83,8 +83,15 @@ struct Settings {
     int windowSize=0; // The window's exact size (scene3d/window_size.cpp): 0 free, else its height in pixels at 16:9 (720, 1080, 1440, 2160).
     int scale=100; // Render size: up to 100 a percentage of the window, above that a fixed height in pixels (never above the window's).
     int upscale=0; // The render stretched to the window: 0 smooth (bilinear), 1 crisp (nearest), 2 sharp bilinear.
+    int aspect=0; // The picture's shape: 0 the window's, 1 a 4:3 box in its middle, black bars beside it (frame.cpp pictureBox).
+    int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
+    int ps1Dither=0; // The final colours cut to the PlayStation's 15 bits through its 4x4 ordered dither (present.frag).
     int invertLook=0; // Mouse look: moving the mouse forward tilts the view down.
     int classicAim=0; // With mouse look: bullets autoaim at a monster in front as in DOOM, following the view only with none.
+    // Movement tuning (p_movetune.h), DOOM only: multipliers, 1 unchanged. Walk and run speed, keyboard and joystick
+    // turning, momentum (longer to start and stop, same top speed), view and weapon bob.
+    float moveWalk=1,moveRun=1,moveTurn=1,moveMomentum=1,moveBob=1;
+    float moveBobRate=1,moveTurnRamp=1; // The bob's pace (and the flashlight's sway); the turn keys' slow start, eased into full speed.
     int movement=0; // 0 DERP's tighter tuning, 1 DOOM's own (acceleration, friction, faster diagonals), 2 tuned plus held running diagonals easing into DOOM's strafe-running.
     int quickConfirm=1; // Quicksave and quickload ask before overwriting or loading.
     float msaa=0; // Geometry edge anti-aliasing: 0 off, then 2x, 4x and 8x MSAA (capped by gpuMaxSamples).
@@ -186,10 +193,12 @@ struct Settings {
     int shootableLights=1; // Experiment: tech walls spark when shot; shots into a lamp or screen break its fixture and re-bake its light.
     int killShotsCarry=1; // With shootableLights: a hitscan shot that kills its target carries on to spark and break lights behind it.
     int glassReflections=1; // Experiment: the nearest window mirrors the world, drawn again like the liquid reflection.
+    int faceLighting=1; // The status bar's face is relit as the weapon is, by the light ahead of the player.
     int weaponLighting=1; // The weapon's painted sheen and light come out at load; lights around the player relight it.
     // Sound, though graphics.cfg keeps it: the mixer is told in applySettings.
     int musicDevice=0; // What plays the music: 0 SoundFont, 1 OPL FM, 2 the Mac's own synthesizer.
     int sfxResampling=0; // Effects between their samples: 0 held (original sizzle), 1 cubic, 2 windowed sinc.
+    int userSounds=1; // Sound files the player supplies (user_sounds.c) play in place of the WAD's.
     float sfxTreble=1; // Made-up treble above the samples' own band, past Original playback (0-2).
     int roomAcoustics=1; // Echoes and a reverb tail measured from the room around the player.
     float reverbAmount=1; // How loud the echoes and tail are (0-2).
@@ -295,7 +304,8 @@ struct FrameView {
 // of the artwork's contrast stays far away (0: not a liquid, no fade);
 // frameMean's alpha is the material (surfaceMaterial in scene3d/scene.cpp).
 struct SurfaceBinding { const Image *image,*next; float blend; std::array<float,4> frameMean{},cycleMean{}; };
-struct SpriteDraw { const Image *image; std::vector<Vertex> vertices; };
+// overHud: drawn over the classic HUD (the status bar's relit face), not under it.
+struct SpriteDraw { const Image *image; std::vector<Vertex> vertices; bool overHud=false; };
 
 // Lifecycle: init reads options and graphics.cfg, the backend may override
 // them, then applySettings installs the engine hooks.

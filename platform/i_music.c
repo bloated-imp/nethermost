@@ -5,15 +5,21 @@
  * - System (Mac only): the Mac's own General MIDI synthesizer.
  * F4 picks one; -soundfont [bank.sf2], -opl or -systemsynth override it
  * for the session. Without a bank, SoundFont falls back to the system
- * synthesizer on the Mac and to the OPL elsewhere. */
+ * synthesizer on the Mac and to the OPL elsewhere.
+ * A recorded track the player supplies for the map or song (user_music.c)
+ * plays in the mixer instead of any of them. */
 #include <stdio.h>
 #include <string.h>
 #include "doomdef.h"
 #include "i_sound.h"
 #include "m_argv.h"
 #include "i_music.h"
+#include "user_music.h"
 #include "audio/sound_options.h"
 #include <SDL3/SDL.h>
+
+#define DEVICE_TRACK 100	/* a player's recorded track, in the mixer */
+static char track_path[4096];	/* the one for the song registered next, or "" */
 
 #ifdef __APPLE__
 #define HAVE_SYSTEM_SYNTH 1
@@ -101,6 +107,18 @@ static void set_volume(void)
 
 static void start(void)
 {
+    if (track_path[0])
+    {
+        device = DEVICE_TRACK;
+        if ((on_device = I_Mixer_RegisterTrack(track_path)))
+        {
+            printf("Music track: %s\n", track_path);
+            set_volume();
+            return;
+        }
+        fprintf(stderr, "Music: could not play %s; the WAD's score plays instead.\n", track_path);
+        track_path[0] = 0;
+    }
     device = resolve(setting);
 #ifdef __APPLE__
     if (device == MUSIC_SYSTEM) on_device = Mac_RegisterSong(song);
@@ -141,6 +159,11 @@ void I_SetMusicVolume(int level)
 
 /* The handle only tells DOOM a song is there: a device switch registers
    the song again without DOOM knowing. */
+void I_SetMusicName(const char *map, const char *name)
+{
+    if (!UserMusic_Find(map, name, track_path, sizeof(track_path))) track_path[0] = 0;
+}
+
 int I_RegisterSong(void *data)
 {
     stop();
@@ -195,7 +218,8 @@ void I_ResumeSong(int handle)
 void I_SetMusicDevice(int choice)
 {
     setting = choice;
-    if (!song || resolve(choice) == device) return;
+    /* A recorded track plays whatever synth is picked. */
+    if (!song || device == DEVICE_TRACK || resolve(choice) == device) return;
     stop();
     start();
     if (playing) play();

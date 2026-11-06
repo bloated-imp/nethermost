@@ -89,6 +89,8 @@ void P_DropWeapon (player_t* player);
 //
 void	P_PlayerThink (player_t* player);
 boolean P_UseResponsiveMovement (void);
+boolean P_MoveTuning (void);	// movement tuning applies (p_movetune.h)
+int	P_BobPhase (int pertic);	// the bob's fine angle this tic, at the tuned pace
 double	P_DiagonalKeep (player_t* player);
 boolean P_DebugAllowed (void);
 boolean P_Flying (void);

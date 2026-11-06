@@ -1,14 +1,14 @@
-# Play DERP
+# Nethermost
 
 **On Windows and Linux**, put your `.wad` files into the `wads` folder next to
-`Play DERP.exe` (or `play-derp`) and start the game. Base games are found automatically;
+`Nethermost.exe` (or `nethermost`) and start the game. Base games are found automatically;
 with several, the game asks which one to play, and also offers the included
 Freedoom. One custom map WAD in the folder is loaded on top of the base game;
 with several, the game asks. A `.deh` or `.bex` patch with the same name as the
 map is applied too. With no WADs in the folder, Freedoom starts. The rules below
 are the same on the Mac.
 
-**On the Mac**, double-click **Play DERP.app**. No installation is needed, and
+**On the Mac**, double-click **Nethermost.app**. No installation is needed, and
 you can move the app to Applications.
 
 If you have the source code rather than a download, build it first as
@@ -239,7 +239,7 @@ To use an original DOOM or DOOM II IWAD you own, launch the executable with an
 absolute path:
 
 ```sh
-"./Play DERP.app/Contents/MacOS/Play DERP" -iwad "/absolute/path/to/doom.wad"
+"./Nethermost.app/Contents/MacOS/Nethermost" -iwad "/absolute/path/to/doom.wad"
 ```
 
 For an exact window size, pick one under **F4 → Graphics → Display → Window size**,

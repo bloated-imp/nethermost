@@ -32,9 +32,9 @@ CMake also downloads the Nuked OPL3 emulator (LGPL-2.1+) and TinySoundFont
 GeneralUser GS SoundFont (32 MB, pinned and hash-checked) into
 `build/play/soundfonts/` and copies it beside the game; `-DDOOM_SOUNDFONT=OFF`
 skips it, and music then falls back to OPL (to the system synthesizer on macOS).
-On macOS, game data is copied into `build/play/Play DERP.app`. You can supply
+On macOS, game data is copied into `build/play/Nethermost.app`. You can supply
 an original DOOM/DOOM II IWAD instead. Without bundled data, the app presents
-a file picker at launch. On Linux and Windows use `doom -iwad /path/to/game.wad`.
+a file picker at launch. On Windows use `Nethermost.exe -iwad C:\path\to\game.wad`, on Linux `nethermost -iwad /path/to/game.wad`.
 `platform/i_music.c` picks the music device. MUS and MIDI scores go through
 `platform/audio/`: either TinySoundFont with a `.sf2` bank, or an emulated OPL3
 chip with the WAD's GENMIDI instruments, built from the published chip and lump
@@ -234,7 +234,8 @@ It reads the player's own `graphics.cfg` unless `-graphics` names another;
 map exceeds it. Keep the window visible while it runs.
 
 For a bounded frame capture, the app accepts `-rendercheck /absolute/output.png`
-(it exits after capturing an actual level). Use `-graphics /absolute/file.cfg`
+(it exits after capturing an actual level; add `-rendertitle` to capture the
+title page instead, at the tic `-rendertic` gives). Use `-graphics /absolute/file.cfg`
 to isolate graphics settings. These are development options, independent of
 normal F7 screenshots.
 
@@ -313,7 +314,7 @@ and their floor shadows fall from that light.
 
 ```sh
 SDL_GPU_DRIVER=vulkan SDL_VULKAN_LIBRARY=/opt/homebrew/lib/libvulkan.1.dylib \
-  "build/play/Play DERP.app/Contents/MacOS/Play DERP"
+  "build/play/Nethermost.app/Contents/MacOS/Nethermost"
 ```
 
 `-rendercheck` captures on E1M1 from the former native Metal renderer, SDL_gpu

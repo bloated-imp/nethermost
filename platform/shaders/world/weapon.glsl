@@ -38,6 +38,15 @@ Weapon weaponSurface(inout float light) {
     weaponNormal=normalize(c.right.xyz*packed.x-c.up.xyz*packed.y-c.forward.xyz*sqrt(saturate(1.0-dot(packed,packed))));
     weaponAt=c.eye.xyz+10.0*(c.forward.xyz+c.right.xyz*vWorld.x/c.projection.x+c.up.xyz*vWorld.y/c.projection.y);
     weaponView=normalize(c.eye.xyz-weaponAt);
+    // MODE_FACE: the status bar's face looks out at the view, so its normals
+    // turn round to face ahead, mirrored (the picture's right is its left
+    // cheek); it sits at the eye and is seen from ahead, so lights in front
+    // fall on it and one to a side lights that side.
+    if((vMode&MODE_FACE)!=0u) {
+        weaponNormal=normalize(-c.right.xyz*packed.x-c.up.xyz*packed.y+c.forward.xyz*sqrt(saturate(1.0-dot(packed,packed))));
+        weaponAt=c.eye.xyz+2.0*c.forward.xyz;
+        weaponView=c.forward.xyz;
+    }
     float edge=1.0-saturate(dot(weaponNormal,weaponView));
     light=round(light*(0.95+0.25*weaponNormal.z)*(1.0-0.4*edge*edge)*16.0)/16.0;
     return Weapon(weaponNormal,weaponAt,weaponView,weaponGloss);

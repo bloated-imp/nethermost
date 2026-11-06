@@ -73,9 +73,9 @@ jobs:
           -DDOOM_RELEASE_VERSION="$DOOM_RELEASE_VERSION" -DDOOM_GAME_DATA="$FREEDOOM_WAD"
           ${{ matrix.configure }}
 
-      # derp-heretic too: the launcher hands Heretic WADs to it, beside the game.
+      # nethermost-heretic too: the launcher hands Heretic WADs to it, beside the game.
       - name: Build
-        run: cmake --build build/release --config Release --parallel 4 --target doom derp-heretic
+        run: cmake --build build/release --config Release --parallel 4 --target doom nethermost-heretic
 
       - name: Package Windows or Linux
         if: matrix.platform != 'mac'
@@ -83,9 +83,9 @@ jobs:
           sh scripts/package-release.sh ${{ matrix.platform }} build/release freedoom dist
           cd dist
           if [ ${{ matrix.platform }} = windows ]; then
-            7z a -tzip DERP-windows.zip DERP-windows
+            7z a -tzip Nethermost-windows.zip Nethermost-windows
           else
-            tar czf DERP-linux.tar.gz DERP-linux
+            tar czf Nethermost-linux.tar.gz Nethermost-linux
           fi
 
       # The complete corresponding source: this commit plus the SDL and Nuked
@@ -94,7 +94,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sh scripts/package-source.sh build/release dist
-          tar czf dist/DERP-source.tar.gz -C dist DERP-source
+          tar czf dist/Nethermost-source.tar.gz -C dist Nethermost-source
 
       - name: Package, sign and notarize the Mac app
         if: matrix.platform == 'mac'
@@ -106,7 +106,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           FREEDOOM_DIR="$PWD/freedoom" sh scripts/package-macos.sh build/release dist
-          app="dist/Play DERP.app"
+          app="dist/Nethermost.app"
           if [ -n "$MACOS_CERTIFICATE_P12" ]; then
             keychain="$RUNNER_TEMP/signing.keychain-db"
             keychain_password=$(uuidgen)
@@ -120,7 +120,7 @@ jobs:
             security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
             security list-keychains -d user -s "$keychain" login.keychain
             codesign --force --options runtime --timestamp --sign "Developer ID Application" \
-              "$app/Contents/MacOS/derp-heretic"
+              "$app/Contents/MacOS/nethermost-heretic"
             codesign --force --options runtime --timestamp --sign "Developer ID Application" "$app"
             ditto -c -k --keepParent "$app" notarize.zip
             result=$(xcrun notarytool submit notarize.zip --apple-id "$APPLE_ID" \
@@ -137,11 +137,11 @@ jobs:
           else
             echo "No signing secrets set; the Mac app is signed ad hoc and not notarized."
           fi
-          ditto -c -k --keepParent "$app" dist/DERP-mac.zip
+          ditto -c -k --keepParent "$app" dist/Nethermost-mac.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: DERP-${{ matrix.platform }}
+          name: Nethermost-${{ matrix.platform }}
           path: |
             dist/*.zip
             dist/*.tar.gz
@@ -180,4 +180,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "$GITHUB_REF_NAME" dist/* --prerelease
-          --title "DERP $GITHUB_REF_NAME" --notes-file release-notes.md
+          --title "Nethermost $GITHUB_REF_NAME" --notes-file release-notes.md

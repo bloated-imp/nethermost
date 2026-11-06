@@ -257,6 +257,9 @@ void Game_SfxLoaded(int id, void *data)
     S_sfx[id].snd_ptr = data;
 }
 
+/* Heretic's sounds are replaced by lump name only. */
+const char *Game_SoundName(int id, int type, int weapon) { (void)id; (void)type; (void)weapon; return NULL; }
+
 float Game_SoundCarry(int id) { (void)id; return 1; }
 
 /* Heretic's traces aren't hooked yet: no near misses. */

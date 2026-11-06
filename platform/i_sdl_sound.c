@@ -27,7 +27,9 @@
 #include "audio/falling_air.h"
 #include "audio/library_acoustics.h"
 #include "game_profile.h"
+#include "user_sounds.h"
 #include "audio/sf2_synth.h"
+#include "audio/track_stream.h"
 #include "audio/sound_options.h"
 #include <SDL3/SDL.h>
 
@@ -51,7 +53,9 @@
 #define AIR_GLIDE_SECONDS 0.25f
 /* Ambience ducks under loud effects at once and comes back over this long. */
 #define DUCK_RELEASE_SECONDS 1.2f
-typedef struct { const byte *data; int length, rate; } sample_t;
+/* An effect's samples: the WAD's 8-bit data, or (pcm) a recording the
+   player supplied (user_sounds.c), which has its own treble. */
+typedef struct { const byte *data; int length, rate; const float *pcm; } sample_t;
 typedef struct {
     sample_t sample;
     double position, step;
@@ -81,6 +85,11 @@ static float treble_amount = 1;
 static float next_cutoff = OCCLUSION_OPEN_HZ;
 static float next_x, next_y, next_air = 1, next_air_hz = OCCLUSION_OPEN_HZ;
 static int next_placed, next_own, natural_falloff = 1;
+/* Supplied sound files (user_sounds.c; F4 Supplied sound files), what makes
+   the next effect (I_SoundFrom), and each effect's file once looked for. */
+static int user_sounds = 1, next_type = -1, next_weapon = -1;
+static signed char replaced[NUMSFX];
+static sample_t replacements[NUMSFX];
 static float reverb_amount = 1;
 /* The listener's room, and the bigger space beyond it (measured on the game
    thread; the mixer only has its coupling). */
@@ -169,13 +178,16 @@ static void audio(void *userdata, SDL_AudioStream *output, int additional, int t
             float air = channel->air;
             float send_here = channel->send * (1 - there + coupling * there);
             float send_there = channel->send * (there + coupling * sqrtf(coupling) * (1 - there));
-            /* Held samples bring their own sizzle up there instead. */
-            int treble = resampling != RESAMPLE_ORIGINAL && treble_amount > 0;
+            /* Held samples bring their own sizzle up there instead, and a
+               supplied recording its own treble. */
+            int treble = resampling != RESAMPLE_ORIGINAL && treble_amount > 0 && !channel->sample.pcm;
+            const float *pcm = channel->sample.pcm;
             for (int i = 0; i < count; ++i)
             {
                 int position = (int)channel->position;
                 if (position >= channel->sample.length) { channel->handle = 0; break; }
-                float value = Resample_At(channel->sample.data, channel->sample.length, channel->position, resampling);
+                float value = pcm ? Resample_AtFloat(pcm, channel->sample.length, channel->position, resampling)
+                                  : Resample_At(channel->sample.data, channel->sample.length, channel->position, resampling);
                 if (treble) value = Treble_Process(&channel->treble, value, treble_amount);
                 channel->low[0] = value + (channel->low[0] - value) * keep;
                 channel->low[1] = channel->low[0] + (channel->low[1] - channel->low[0]) * keep;
@@ -247,6 +259,7 @@ void I_InitSound(void)
         if (!size || size > (uint32_t)(length - 8)) continue;
         samples[i] = (sample_t){ data + 8, (int)size, (int)little16(data + 2) };
     }
+    UserSounds_Init();
     if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
     { fprintf(stderr, "Audio unavailable: %s\n", SDL_GetError()); return; }
     SDL_AudioSpec spec = { SDL_AUDIO_F32, 2, OUTPUT_RATE };
@@ -371,6 +384,33 @@ void I_SoundAt(int handle, fixed_t x, fixed_t y, fixed_t z)
 }
 /* The next I_StartSound is the listener's own: on Phobos heard through the suit. */
 void I_SoundOwn(void) { next_own = 1; }
+void I_SoundFrom(int type, int weapon) { next_type = type; next_weapon = weapon; }
+void I_SetUserSounds(int enabled) { user_sounds = enabled != 0; }
+
+static sample_t supplied(const user_sound_t *u)
+{
+    sample_t s = { u->dmx, u->length, u->rate, u->pcm };
+    return s;
+}
+/* What effect id plays, from a thing of type with weapon: a pack's own
+   sound for that thing (Game_SoundName, SNDINFO), else a file supplied for
+   the effect's lump, else the WAD's. */
+static sample_t effect_sample(int id, int type, int weapon)
+{
+    if (!user_sounds) return samples[id];
+    user_sound_t u;
+    const char *name = type >= 0 ? Game_SoundName(id, type, weapon) : NULL;
+    if (name && UserSounds_Named(name, &u)) return supplied(&u);
+    if (!replaced[id])
+    {
+        char lump[9];
+        memcpy(lump, lumpinfo[I_GetSfxLumpNum(&S_sfx[id])].name, 8);
+        lump[8] = 0;
+        replaced[id] = UserSounds_Lump(lump, &u) ? 1 : -1;
+        if (replaced[id] > 0) replacements[id] = supplied(&u);
+    }
+    return replaced[id] > 0 ? replacements[id] : samples[id];
+}
 void I_SubmitSound(void) { }
 void I_SetChannels(void) { }
 /* Takes the free channel, or the quietest (the oldest of equals), so a
@@ -409,15 +449,18 @@ int I_StartSound(int id, int volume, int separation, int pitch, int priority)
     (void)priority;
     float cutoff = next_cutoff, x = next_x, y = next_y, level = (float)volume, there = next_beyond;
     float air = next_air, air_hz = next_air_hz;
-    int placed = next_placed, own = next_own;
+    int placed = next_placed, own = next_own, type = next_type, weapon = next_weapon;
     next_cutoff = OCCLUSION_OPEN_HZ; next_placed = 0; next_beyond = 0; next_air = 1; next_air_hz = OCCLUSION_OPEN_HZ; next_own = 0;
+    next_type = next_weapon = -1;
     const mobj_t *listener = players[consoleplayer].mo;
     if (own && listener) air = Vacuum_Carry(listener->x, listener->y, 1, &air_hz);
     cutoff = SDL_min(cutoff, air_hz);
-    if (!stream || id < 1 || id >= NUMSFX || !samples[id].data) return 0;
+    if (!stream || id < 1 || id >= NUMSFX) return 0;
+    sample_t sample = effect_sample(id, type, weapon);
+    if (!sample.data && !sample.pcm) return 0;
     float reach = reach_of(id);
     if (placed && falls_off()) level = snd_SfxVolume * distance_gain(listener_distance(x, y) / reach);
-    int handle = start_sample(samples[id], level, separation, pitch, cutoff, placed ? there : 0, 1, air);
+    int handle = start_sample(sample, level, separation, pitch, cutoff, placed ? there : 0, 1, air);
     SDL_LockAudioStream(stream);
     mix_channel_t *channel = find(handle);
     if (channel) { channel->placed = placed; channel->x = x; channel->y = y; channel->reach = reach; }
@@ -590,6 +633,18 @@ int I_Mixer_RegisterSong(void *data, int soundfont)
     int registered = MixerMusic_Register(data, size, OUTPUT_RATE, soundfont != 0);
     unlock_music();
     return registered;
+}
+
+/* Opening reads the file's header off the audio thread; the swap holds the lock. */
+int I_Mixer_RegisterTrack(const char *path)
+{
+    if (!stream) return 0;
+    track_stream_t *track = Track_Open(path);
+    if (!track) return 0;
+    lock_music();
+    MixerMusic_UseTrack(track, OUTPUT_RATE);
+    unlock_music();
+    return 1;
 }
 
 /* Reading a bank takes a while, so only the swap holds the lock. */

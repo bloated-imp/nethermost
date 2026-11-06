@@ -15,6 +15,10 @@ void MixerMusic_Stop (void);
 void MixerMusic_Pause (void);
 void MixerMusic_Resume (void);
 void MixerMusic_SetVolume (int volume);
+/* Puts a recorded track (Track_Open) in place of any score, mixed at rate;
+   the mixer owns it and closes it when the song is unregistered. */
+struct track_stream_s;
+void MixerMusic_UseTrack (struct track_stream_s* track, int rate);
 /* Puts a SoundFont bank (from SF2_Open) in use; returns the one before. */
 struct tsf* MixerMusic_UseBank (struct tsf* bank);
 /* Adds the next frames of music to an interleaved stereo buffer. */
