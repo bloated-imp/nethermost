@@ -85,8 +85,12 @@ int Game_BlastFrame(const struct mobj_s *thing)
     return state >= S_BEXP && state <= S_BEXP5 ? state - S_BEXP : -1;
 }
 
-void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate)
+void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate, float *warm)
 {
+    /* The bullet guns' flash frames are a deep red; their light is a
+       paler gunpowder orange. */
+    if (weapon == wp_pistol || weapon == wp_shotgun || weapon == wp_supershotgun || weapon == wp_chaingun)
+        *warm = 1;
     if (weapon == wp_shotgun || weapon == wp_supershotgun) { *radius = 448; *strength = 2.4f; }
     else if (weapon == wp_missile || weapon == wp_bfg) { *radius = 480; *strength = 2.6f; }
     else if (weapon == wp_plasma) { *radius = 320; *strength = 1.6f; }

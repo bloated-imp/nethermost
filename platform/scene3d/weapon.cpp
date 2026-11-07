@@ -6,12 +6,16 @@ namespace doom3d {
 // Weapon frames to relight (weapon_lighting.h), keyed below the WAD lumps:
 // the de-lit artwork with its normals in B/A, two transparent columns, then
 // its gloss in R.
-static Image &weaponImage(int lump) {
+// keepPaint (the status bar's face): its colors stay as painted. It is too
+// small for the weapon's de-lighting, which flattens it to mud; only its
+// normals and gloss are derived.
+static Image &weaponImage(int lump,bool keepPaint=false) {
     int key=INT_MIN/2-lump; auto found=images.find(key); if(found!=images.end()) return found->second;
     const Image &source=lumpImage(lump,false);
     int w=source.width,h=source.height,stride=2*w+2;
     const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
     auto maps=doom_weapon_delight(w,h,source.pixels.data(),palette);
+    if(keepPaint) maps.pixels=source.pixels;
     std::vector<byte> packed((size_t)stride*h*4,0);
     for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
         size_t i=(size_t)y*w+x;byte *art=&packed[((size_t)y*stride+x)*4];
@@ -193,7 +197,7 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
     const void *face=settings.faceLighting&&settings.weaponLighting&&player->mo?ST_Face(&faceX,&faceY):nullptr;
     int faceLump=face?lumpOfPatch(face):-1;
     if(faceLump>=0) {
-        Image &image=weaponImage(faceLump);
+        Image &image=weaponImage(faceLump,true);
         float x=(float)(faceX-image.left),y=(float)(faceY-image.top);
         sector_t *sector=player->mo->subsector->sector;
         float light=sunLightAt(camera.eye[0],camera.eye[1],sector,flowLightAt(camera.eye[0],camera.eye[1],sector,

@@ -29,8 +29,8 @@ static std::array<float,3> frameGlow(int sprite,int frame) {
 void muzzleFlash(mobj_t *source,int weapon,int projectile) {
     if(!source||gamestate!=GS_LEVEL) return;
     if(flashLevelSerial!=r_levelserial) {flashPulses.clear();flashLevelSerial=r_levelserial;}
-    float radius=384,strength=1.9f;int flashState=-1;
-    Game_MuzzleFlash(weapon,&radius,&strength,&flashState);
+    float radius=384,strength=1.9f,warm=0;int flashState=-1;
+    Game_MuzzleFlash(weapon,&radius,&strength,&flashState,&warm);
     disturbanceMuzzle(*source);   // its blast stirs the weather in front (disturbance_sources.cpp)
     float z=source->player?units(source->player->viewz)-8:units(source->z)+units(source->height)*0.65f;
     int sprite=source->sprite,frame=source->frame;
@@ -39,7 +39,11 @@ void muzzleFlash(mobj_t *source,int weapon,int projectile) {
     } else if(source->player&&flashState>=0) {
         const auto &state=states[flashState];sprite=state.sprite;frame=state.frame;
     }
-    FlashPulse pulse={units(source->x),units(source->y),z,radius,strength,leveltime,source,frameGlow(sprite,frame)};
+    auto color=frameGlow(sprite,frame);
+    // A soft gunpowder orange, less saturated than the flash's red frames.
+    const std::array<float,3> gunpowder={1.0f,0.74f,0.46f};
+    for(int i=0;i<3;++i)color[i]+=(gunpowder[i]-color[i])*warm;
+    FlashPulse pulse={units(source->x),units(source->y),z,radius,strength,leveltime,source,color};
     for(auto &old:flashPulses) if(old.source==source) {old=pulse;return;}
     if(flashPulses.size()==8) flashPulses.erase(flashPulses.begin());
     flashPulses.push_back(pulse);

@@ -64,8 +64,9 @@ int Game_BlastFrame(const struct mobj_s *thing)
     return state >= S_POD_DIE1 && state <= S_POD_DIE4 ? 1 + state - S_POD_DIE1 : -1;
 }
 
-void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate)
+void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate, float *warm)
 {
+    (void)warm;
     if (weapon == wp_phoenixrod || weapon == wp_skullrod) { *radius = 480; *strength = 2.6f; }
     else if (weapon == wp_crossbow || weapon == wp_blaster) { *radius = 448; *strength = 2.4f; }
     *flashstate = weapon >= 0 && weapon < NUMWEAPONS && wpnlev1info[weapon].flashstate

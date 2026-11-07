@@ -32,7 +32,7 @@ boolean		ps1title = true;
 #define LOGO_SCALE	2
 #define LOGO_TOP	14		// where the logo comes to rest
 #define RISE_DELAY	35		// tics of fire alone before the logo shows
-#define RISE_TICS	(35*4)		// how long it takes to rise
+#define RISE_TICS	200		// how long it takes to rise (about 5.7 s)
 
 static byte	heat[FIRE_W*FIRE_H];
 static byte	colors[FIRE_LEVELS];

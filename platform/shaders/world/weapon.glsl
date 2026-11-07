@@ -63,6 +63,13 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     // from above gives one too, sliding over the metal as the view
     // pitches and the weapon bobs.
     vec3 n=w.normal,view=w.view,weaponAt=w.at;float weaponGloss=w.gloss;
+    // The face is skin, not metal: no hard highlights or mirrored room,
+    // only a faint broad sheen from each light (face) and a little of the
+    // room at its grazing edges.
+    bool face=(vMode&MODE_FACE)!=0u;
+    if(face) weaponGloss=0.0;
+    // A bright rim where the outline turns to a light reads as wet on skin.
+    float rimGain=face?0.6:1.6;
     float shininess=10.0+30.0*weaponGloss;
     // The sprite's rounded normals describe its camera-facing skin,
     // not the top of the barrel. Approximate that upper plane for
@@ -90,8 +97,9 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         specular+=pulse*statics.w*weaponGloss*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
         specular+=pulse*statics.w*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
+        if(face) specular+=pulse*statics.w*0.12*pow(saturate(dot(n,halfDirection)),4.0);
         float lit=max(facing,upper*upperDiffuse*saturate(dot(upperNormal,toLight))*smoothstep(0.1,0.6,dot(toLight,c.forward.xyz)));
-        pulse*=mix(1.0,0.25+1.0*lit+1.6*rim+1.2*creep,statics.w);
+        pulse*=mix(1.0,0.25+1.0*lit+rimGain*rim+1.2*creep,statics.w);
     }
     // The room around it, even with no light near: a fill from each
     // side; glossy faces and every grazing edge mirror what lies
@@ -103,7 +111,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     vec3 environment=weaponSurroundings(frame*n)*0.3;
     float edge=1.0-saturate(dot(n,view)),base=0.02+0.12*weaponGloss;
     vec3 mirrored=weaponSurroundings(frame*reflect(-view,n))*(base+(1.0-base)*pow(edge,4.0));
-    specular+=round(mirrored*0.8*surroundings*16.0)/16.0;
+    specular+=round(mirrored*0.8*surroundings*(face?0.3:1.0)*16.0)/16.0;
     // Like a glossy floor, the upper metal reflects a bright panel
     // ahead. The ambient cube represents a broad source, rather than
     // a sharp point highlight. Keep the reflection in palette steps.
@@ -121,6 +129,11 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         if(amount<=0.0) continue;
         amount=min(amount,1.5)*0.5;
         vec3 toLight=normalize(lights[i].position.xyz-weaponAt);
+        // The face's own hitscan muzzle flash shines from the player's
+        // middle, just under and behind the face, so it would graze only
+        // the edges; it comes from the gun out in front, a little low.
+        if((vMode&MODE_FACE)!=0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
+            toLight=normalize(c.forward.xyz-0.3*c.up.xyz);
         float facing=saturate(dot(n,toLight));
         float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
         // A static light's light already arrives in the tint, and a
@@ -129,13 +142,14 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         // the same total, so it shapes the weapon even in bright rooms.
         float bakedShare=c.bake.x>0.0?lights[i].baked:0.0;
         float lit=max(facing,upper*upperDiffuse*saturate(dot(upperNormal,toLight))*smoothstep(0.1,0.6,dot(toLight,c.forward.xyz)));
-        pulse+=lights[i].color.rgb*amount*(0.15+1.1*lit+1.6*rim-0.6*bakedShare);
+        pulse+=lights[i].color.rgb*amount*(0.15+1.1*lit+rimGain*rim-0.6*bakedShare);
         float highlight=pow(saturate(dot(n,normalize(toLight+view))),shininess),mirror;
         // Looking toward the light, it also spills over the weapon.
         pulse+=lights[i].color.rgb*amount*1.2*weaponCreep(n,view,toLight,mirror);
         specular+=lights[i].color.rgb*amount*weaponGloss*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
         specular+=lights[i].color.rgb*amount*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
+        if(face) specular+=lights[i].color.rgb*amount*0.12*pow(saturate(dot(n,halfDirection)),4.0);
     }
     // Static-light redistribution may subtract its own baked tint,
     // but must not consume the independent light from the room.

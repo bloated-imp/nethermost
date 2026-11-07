@@ -359,6 +359,15 @@ void main() {
     }
     color.rgb=applyWear(color.rgb,wear,emission);
     vec3 albedo=color.rgb;
+    // MODE_FACE: painted skin already leans red, so colored light takes it
+    // only part of the way (a red room tints the face, not floods it), and
+    // never far past full brightness. Its light comes in the colormaps'
+    // 1/16 steps: crisp per pixel, on the painted colors' own hues.
+    if((vMode&MODE_FACE)!=0u) {
+        float level=dot(illumination,vec3(0.299,0.587,0.114));
+        illumination=min(mix(vec3(level),illumination,0.45),vec3(1.25));
+        illumination=round(illumination*16.0)/16.0;
+    }
     color.rgb=color.rgb*illumination;
     // Light also spills toward its own color by how saturated the texel is,
     // as the palette's ramps brighten toward white: by multiplying alone pure

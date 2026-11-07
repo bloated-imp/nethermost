@@ -56,8 +56,9 @@ int Game_BlastFrame(const struct mobj_s *thing);
 
 /* A shot's muzzle flash: how far and strong its light reaches (the
    defaults suit a pistol), and the state whose frame colours it (-1: the
-   shooter's own frame). */
-void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate);
+   shooter's own frame), and how far (0-1) its colour turns to a soft
+   gunpowder orange (default 0: the frame's colour as it is). */
+void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate, float *warm);
 
 /* How much a weapon rattles on the player's back as they walk: 0 a light
    one (fist, pistol), 1 a long gun on a sling, 2 a heavy one. */

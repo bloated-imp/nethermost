@@ -82,7 +82,10 @@ Like the weapon, the face on the status bar is relit by the light around
 you: its painted light taken out, its shape read from the artwork as
 normals, then turned to look ahead, where Doomguy looks. A lamp to your
 right lights his right cheek, the room ahead lights his face, a muzzle
-flash flares over it, and in the dark it falls into shadow. **F4 â†’
+flash flares over it, and in the dark it falls into shadow. It keeps its
+painted pixels, takes light in the colormaps' 1/16 steps, stays matte like
+skin, and coloured light only tints it. The bullet guns' flashes shine a
+soft gunpowder orange. **F4 â†’
 Graphics â†’ Relit face** (with Relit weapon on). Code: the face in
 `weaponDraws` (`platform/scene3d/weapon.cpp`), drawn over the status bar in
 `drawOverlays` (`platform/gpu3d/draw.cpp`), `MODE_FACE` in
