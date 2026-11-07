@@ -93,6 +93,13 @@ int Game_BlastFrame(const struct mobj_s *thing);
    shooter's own frame), and how far (0-1) its colour turns to a soft
    gunpowder orange (default 0: the frame's colour as it is). */
 void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate, float *warm);
+/* The PlayStation's reverb for the current map (F4 PS1 reverb): its SPU preset
+   (PSX_REVERB_* of audio/psx_reverb.h) and depth (0-0x7FFF), as PlayStation
+   DOOM set them for the same level; 0 for a map it didn't have. */
+int Game_PsxReverb(int *preset, int *depth);
+/* Whether a map point (map units) lies under open sky: the PlayStation's
+   sounds made there take no reverb. */
+int Game_UnderSky(float x, float y);
 
 /* How much a weapon rattles on the player's back as they walk: 0 a light
    one (fist, pistol), 1 a long gun on a sling, 2 a heavy one. */

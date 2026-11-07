@@ -21,6 +21,9 @@ void I_SetUserSounds(int enabled);
    sounds of lamps, machines, liquids, fire and wind, at amount (0-2); steps:
    the player's footsteps and splashes, and monsters splashing. */
 void I_SetMadeSounds(int impacts, int glass, int ambient, float amount, int steps);
+/* PS1 reverb (psx_reverb.h): the PlayStation's reverb, each map's preset, in
+   place of the measured rooms. */
+void I_SetPsxReverb(int enabled);
 /* How loud the footsteps and splashes play (0-2, 1 as made). */
 void I_SetFootstepVolume(float volume);
 /* Computer ambience: machine hum, hard-drive seeks and relay chatter instead of bleeps. */

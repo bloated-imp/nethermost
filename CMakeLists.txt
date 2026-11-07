@@ -416,7 +416,7 @@ if(DOOM_BUILD_SDL)
         platform/audio/ambient_synth.c platform/audio/machine_synth.c platform/audio/computer_synth.c platform/audio/liquid_synth.c platform/audio/fire_synth.c
         platform/audio/flyby_synth.c platform/audio/gore_synth.c platform/audio/hidden_synth.c platform/audio/hidden.c platform/audio/vacuum.c
         platform/audio/ringing.c platform/audio/head_knock.c platform/audio/falling_air.c platform/audio/library_steps.c
-        platform/audio/library_acoustics.c)
+        platform/audio/library_acoustics.c platform/audio/psx_reverb.c)
     # Gamepads, joysticks, their rumble and the bindings of every key, mouse button and pad button.
     set(DOOM_INPUT_SOURCES platform/i_sdl_gamepad.c platform/gamepad_curves.c platform/gamepad_rumble.c platform/bindings.c)
     add_executable(doom MACOSX_BUNDLE platform/sdl_main.c platform/i_sdl_video.c ${DOOM_INPUT_SOURCES}
@@ -538,7 +538,7 @@ if(DOOM_BUILD_SDL)
         add_dependencies(nethermost-heretic-bundle doom nethermost-heretic)
     endif()
     if(BUILD_TESTING)
-        add_executable(doom-movement-audio-tests tests/movement_audio.c platform/audio/hrtf.c
+        add_executable(doom-movement-audio-tests tests/movement_audio.c platform/audio/hrtf.c platform/audio/psx_reverb.c
             platform/audio/resample.c platform/audio/treble.c platform/audio/step_synth.c platform/audio/frozen.c)
         target_include_directories(doom-movement-audio-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10"
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio")
@@ -567,6 +567,13 @@ if(DOOM_BUILD_SDL)
             target_link_libraries(doom-hrtf-tests PRIVATE m)
         endif()
         add_test(NAME hrtf-directions COMMAND doom-hrtf-tests)
+        # The PlayStation SPU's reverb (F4 PS1 reverb): each preset rings, stays bounded and decays.
+        add_executable(doom-psx-reverb-tests tests/psx_reverb.c platform/audio/psx_reverb.c)
+        target_include_directories(doom-psx-reverb-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio")
+        if(NOT WIN32)
+            target_link_libraries(doom-psx-reverb-tests PRIVATE m)
+        endif()
+        add_test(NAME psx-reverb COMMAND doom-psx-reverb-tests)
         function(doom_add_smoke target game renderer)
             add_executable(${target} ${ARGN} platform/i_sdl_video.c ${DOOM_INPUT_SOURCES}
                 platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}

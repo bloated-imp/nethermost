@@ -226,6 +226,7 @@ struct Settings {
     int ambience=1; // Lamps, machines, liquids, fire and wind sound where the map's textures show them.
     int alternativeComputerSounds=0; // Machine hum, hard-drive seeks and relay chatter in place of the computer bleeps.
     float ambienceAmount=1; // How loud the ambience is next to the effects (0-2).
+    int ps1Reverb=0; // The PlayStation SPU's reverb with each map's preset, in place of the measured rooms (audio/psx_reverb.c).
     float footstepVolume=1; // How loud the footsteps and splashes are (0-2; I_SetFootstepVolume).
     int footsteps=1; // The player's footsteps by floor, splashes in liquids, monsters splashing as they wade.
     // Performance: cheaper stand-ins for per-frame light work.

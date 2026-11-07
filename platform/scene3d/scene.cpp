@@ -188,6 +188,7 @@ void applySettings() {
     I_SetUserSounds(settings.userSounds);
     I_SetMadeSounds(settings.madeImpacts,settings.glassSound,settings.ambience,settings.ambienceAmount,settings.footsteps);
     I_SetFootstepVolume(settings.footstepVolume);
+    I_SetPsxReverb(settings.ps1Reverb);
     I_SetAlternativeComputerSounds(settings.alternativeComputerSounds);
     I_AmbienceShowGlass(settings.accelerated&&settings.windowGlass);
     I_SetMusicDevice(settings.musicDevice);

@@ -22,6 +22,7 @@
 #include "audio/treble.h"
 #include "audio/vacuum.h"
 #include "audio/reverb.h"
+#include "audio/psx_reverb.h"
 #include "audio/ringing.h"
 #include "audio/head_knock.h"
 #include "audio/falling_air.h"
@@ -101,6 +102,8 @@ typedef struct {
     /* On headphones, what the head does to it. */
     int spatial;
     hrtf_voice_t hrtf;
+    /* PS1 reverb: made under open sky, so it takes none. */
+    int psx_dry;
 } mix_channel_t;
 static sample_t samples[NUMSFX];
 static mix_channel_t channels[MIX_CHANNELS];
@@ -124,6 +127,16 @@ static float reverb_amount = 1;
 /* The listener's room, and the bigger space beyond it (measured on the game
    thread; the mixer only has its coupling). */
 static reverb_t *room_reverb, *beyond_reverb;
+/* PS1 reverb (F4 Sound, PS1 reverb; psx_reverb.h): the PlayStation SPU's
+   reverb with the map's preset and depth (Game_PsxReverb) in place of the
+   measured rooms. Sounds made under open sky take none (next_psx_dry, for
+   the next sound started), as the PlayStation's maps marked their outdoors;
+   music none, as recorded PlayStation tracks carry their own. */
+static psx_reverb_t *psx_reverb;
+static int psx_mode, next_psx_dry;
+/* A map PlayStation DOOM didn't have: its most common setting. */
+#define PSX_DEFAULT_PRESET PSX_REVERB_HALL
+#define PSX_DEFAULT_DEPTH 0x1FFF
 static beyond_t beyond;
 static float coupling, coupling_target, next_beyond;
 static float limiter_gain = 1;
@@ -236,7 +249,7 @@ static void gains(mix_channel_t *channel, float volume, int separation, int pitc
 static void audio(void *userdata, SDL_AudioStream *output, int additional, int total)
 {
     (void)userdata; (void)total;
-    float buffer[512 * 2], send[512], send_beyond[512], mono[512];
+    float buffer[512 * 2], send[512], send_beyond[512], mono[512], psx_left[512], psx_right[512];
     const float pan_glide = 1 - expf(-1 / (PAN_GLIDE_SECONDS * OUTPUT_RATE));
     int frames = (additional + (int)sizeof(float)*2 - 1) / ((int)sizeof(float)*2);
     while (frames > 0)
@@ -245,6 +258,9 @@ static void audio(void *userdata, SDL_AudioStream *output, int additional, int t
         memset(buffer, 0, (size_t)count * 2 * sizeof(float));
         memset(send, 0, (size_t)count * sizeof(float));
         memset(send_beyond, 0, (size_t)count * sizeof(float));
+        memset(psx_left, 0, (size_t)count * sizeof(float));
+        memset(psx_right, 0, (size_t)count * sizeof(float));
+        int psx = psx_mode && psx_reverb;
         coupling += (coupling_target - coupling) * (1 - expf(-count / (COUPLING_GLIDE_SECONDS * OUTPUT_RATE)));
         for (int c = 0; c < MIX_CHANNELS; ++c)
         {
@@ -290,8 +306,20 @@ static void audio(void *userdata, SDL_AudioStream *output, int additional, int t
                     buffer[2*i] += value * left;
                     buffer[2*i+1] += value * right;
                 }
-                send[i] += value * send_here;
-                send_beyond[i] += value * send_there;
+                if (psx)
+                {
+                    /* The SPU's reverb hears each voice as it is mixed, left and right. */
+                    if (!channel->psx_dry)
+                    {
+                        psx_left[i] += value * (channel->spatial ? gain : left);
+                        psx_right[i] += value * (channel->spatial ? gain : right);
+                    }
+                }
+                else
+                {
+                    send[i] += value * send_here;
+                    send_beyond[i] += value * send_there;
+                }
                 channel->position += channel->step;
             }
             channel->now_left = left; channel->now_right = right; channel->now_gain = gain;
@@ -308,7 +336,13 @@ static void audio(void *userdata, SDL_AudioStream *output, int additional, int t
         float target = 1 / (1 + 1.5f * peak);
         duck += (target - duck) * (target < duck ? 0.5f : 1 - expf(-count / (DUCK_RELEASE_SECONDS * OUTPUT_RATE)));
         AmbienceVoices_Mix(buffer, send, count, OUTPUT_RATE, resampling, SFX_GAIN, duck);
-        if (acoustics && room_reverb && beyond_reverb)
+        if (psx)
+        {
+            /* Ambience (its send is all that is in send now) rings in it too. */
+            for (int i = 0; i < count; ++i) { psx_left[i] += send[i]; psx_right[i] += send[i]; }
+            PsxReverb_Process(psx_reverb, psx_left, psx_right, buffer, count, reverb_amount);
+        }
+        else if (acoustics && room_reverb && beyond_reverb)
         {
             Reverb_Process(room_reverb, send, buffer, count, reverb_amount);
             /* The space beyond is only heard through its opening. */
@@ -370,6 +404,7 @@ void I_InitSound(void)
     MadeBank_Build();
     room_reverb = Reverb_New(OUTPUT_RATE);
     beyond_reverb = Reverb_New(OUTPUT_RATE);
+    psx_reverb = PsxReverb_New();
     I_SetSoundOutput(sound_output);
     Resample_Init();
     stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, audio, NULL);
@@ -394,6 +429,20 @@ void I_UpdateSound(void)
 {
     static int measured = -1, ambient = -1;
     if (!stream) return;
+    if (psx_mode && psx_reverb)
+    {
+        /* The map's PlayStation preset; outside levels the default. */
+        static int set_preset = -1, set_depth = -1;
+        int preset = PSX_DEFAULT_PRESET, depth = PSX_DEFAULT_DEPTH;
+        if (gamestate == GS_LEVEL) Game_PsxReverb(&preset, &depth);
+        if (preset != set_preset || depth != set_depth)
+        {
+            SDL_LockAudioStream(stream);
+            PsxReverb_Set(psx_reverb, preset, depth);
+            SDL_UnlockAudioStream(stream);
+            set_preset = preset; set_depth = depth;
+        }
+    }
     if (gametic != ambient)
     {
         ambient = gametic;
@@ -578,6 +627,7 @@ static int start_sample(sample_t sample, float volume, int separation, int pitch
     channel->reach = 1;
     channel->most = OCCLUSION_OPEN_HZ;
     channel->send_scale = send_scale;
+    channel->psx_dry = next_psx_dry; next_psx_dry = 0;
     if (next_handle == INT_MAX) next_handle = 1;
     channel->handle = next_handle++;
     gains(channel, volume, separation, pitch);
@@ -630,6 +680,9 @@ int I_StartSound(int id, int volume, int separation, int pitch, int priority)
     if (!stream) return 0;
     if (placed && falls_off()) level = snd_SfxVolume * distance_gain(listener_distance(x, y) / reach);
     if (placed) separation = pan_at(x, y);
+    /* PS1 reverb: made out under the sky, it takes none; sounds from nowhere (the menus) do. */
+    if (psx_mode && (placed || own) && listener)
+        next_psx_dry = placed ? Game_UnderSky(x, y) : Game_UnderSky(listener->x / (float)FRACUNIT, listener->y / (float)FRACUNIT);
     int handle = start_sample(sample, level, separation, pitch, cutoff, placed ? there : 0, 1, air);
     SDL_LockAudioStream(stream);
     mix_channel_t *channel = find(handle);
@@ -679,6 +732,7 @@ static void play_through(const made_sample_t *sample, float x, float y, float z,
     float cutoff = SDL_min(SDL_min(most, air_hz), Occlusion_Cutoff((fixed_t)(x * FRACUNIT), (fixed_t)(y * FRACUNIT), (fixed_t)(z * FRACUNIT),
                                                   muffle_walls, muffle_distance));
     float way_x = 0, way_y = 0, bend = personal ? 0 : Occlusion_Opening((fixed_t)(x * FRACUNIT), (fixed_t)(y * FRACUNIT), (fixed_t)(z * FRACUNIT), &way_x, &way_y);
+    if (psx_mode) next_psx_dry = Game_UnderSky(x, y);
     int handle = start_sample((sample_t){ sample->data, sample->length, sample->rate }, volume, pan_at(x, y), 128, cutoff,
                               Beyond_Share(&beyond, x, y), send_scale, air);
     /* The listener's own movement stays with them. */
@@ -742,6 +796,14 @@ void I_SetMadeSounds(int impacts, int glass, int ambient, float amount, int step
     if (!ambient && ambience) AmbienceVoices_Clear();
     ambience = ambient != 0;
     ambience_amount = SDL_clamp(amount, 0.0f, 2.0f);
+    if (stream) SDL_UnlockAudioStream(stream);
+}
+void I_SetPsxReverb(int enabled)
+{
+    if (stream) SDL_LockAudioStream(stream);
+    if (psx_reverb && enabled != psx_mode) PsxReverb_Clear(psx_reverb);
+    if (enabled && !psx_mode && room_reverb && beyond_reverb) { Reverb_Clear(room_reverb); Reverb_Clear(beyond_reverb); }
+    psx_mode = enabled != 0;
     if (stream) SDL_UnlockAudioStream(stream);
 }
 void I_SetFootstepVolume(float volume)

@@ -629,12 +629,17 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         {"25%","50%","75%","100%","125%","150%","175%","200%"})}}}},
             {"Hearing",{
                 {"Rooms",{
+                    check("ps1_reverb","PS1 reverb",&s.ps1Reverb,
+                        "The PlayStation's own reverb: its sound chip's reverb unit, set for each level as PlayStation DOOM set "
+                        "it, from small studios to its long, washing Space echo. The same everywhere indoors on a map; sounds "
+                        "made out under the sky stay dry. Replaces the measured room acoustics while on; Echo and reverb still "
+                        "sets how much. Levels the PlayStation didn't have use its usual Hall."),
                     check("room_acoustics","Room acoustics",&s.roomAcoustics,
                         "Sounds echo off the walls around you and ring on in a tail measured from the room: corridors slap back, "
                         "big metal halls boom, wooden rooms stay dull and the outdoors almost dry."),
                     slider("reverb_amount","Echo and reverb",&s.reverbAmount,0.25,2,0.25,
-                        "How loud the echoes and the tail are next to the sound itself.",
-                        [](const Settings &d){return d.roomAcoustics!=0;},
+                        "How loud the echoes and the tail are next to the sound itself, the PS1 reverb's too.",
+                        [](const Settings &d){return d.roomAcoustics!=0||d.ps1Reverb!=0;},
                         {"25%","50%","75%","100%","125%","150%","175%","200%"})}},
                 {"Hearing",{
                     check("muffle_walls","Muffled behind walls",&s.muffleWalls,

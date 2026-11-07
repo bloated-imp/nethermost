@@ -1,5 +1,7 @@
 /* DOOM's answers to platform/game_profile.h. */
 #include <stdio.h>
+#include <string.h>
+#include "../../audio/psx_reverb.h"
 #include "doomdef.h"
 #include "doomstat.h"
 #include "d_event.h"
@@ -141,6 +143,48 @@ int Game_BlastFrame(const struct mobj_s *thing)
     if (thing->type != MT_BARREL || !thing->state) return -1;
     state = (int)(thing->state - states);
     return state >= S_BEXP && state <= S_BEXP5 ? state - S_BEXP : -1;
+}
+
+/* The PlayStation's reverb (F4 PS1 reverb): each level PlayStation DOOM had,
+   by its PC map, with the SPU preset and depth it set there (PsyDoom's
+   MapInfo_Defaults_Doom.cpp, from the original game). Levels it didn't have
+   (E3M8, E3M9, E4M5-E4M7, E4M9, MAP13, MAP15, MAP20, MAP24, MAP28-MAP30 and
+   PWADs' own) take the mixer's default. */
+static const struct { const char *map; int preset, depth; } psx_reverbs[] = {
+    {"E1M1", PSX_REVERB_SPACE, 0x0FFF}, {"E1M2", PSX_REVERB_SPACE, 0x0FFF}, {"E1M3", PSX_REVERB_STUDIO_B, 0x27FF},
+    {"E1M4", PSX_REVERB_HALL, 0x17FF}, {"E1M5", PSX_REVERB_STUDIO_A, 0x23FF}, {"E1M6", PSX_REVERB_HALL, 0x1FFF},
+    {"E1M7", PSX_REVERB_STUDIO_C, 0x26FF}, {"E1M8", PSX_REVERB_STUDIO_B, 0x2DFF}, {"E1M9", PSX_REVERB_SPACE, 0x0FFF},
+    {"E2M1", PSX_REVERB_HALL, 0x1FFF}, {"E2M2", PSX_REVERB_STUDIO_C, 0x2FFF}, {"E2M3", PSX_REVERB_STUDIO_B, 0x27FF},
+    {"E2M4", PSX_REVERB_SPACE, 0x0FFF}, {"E2M5", PSX_REVERB_STUDIO_C, 0x2FFF}, {"E2M6", PSX_REVERB_HALL, 0x1FFF},
+    {"E2M7", PSX_REVERB_HALL, 0x1FFF}, {"E2M8", PSX_REVERB_STUDIO_B, 0x27FF}, {"E2M9", PSX_REVERB_HALL, 0x1FFF},
+    {"E3M1", PSX_REVERB_HALL, 0x1FFF}, {"E3M2", PSX_REVERB_SPACE, 0x0FFF}, {"E3M3", PSX_REVERB_HALL, 0x1FFF},
+    {"E3M4", PSX_REVERB_HALL, 0x1FFF}, {"E3M5", PSX_REVERB_SPACE, 0x0FFF}, {"E3M6", PSX_REVERB_HALL, 0x1FFF},
+    {"E3M7", PSX_REVERB_HALL, 0x1FFF},
+    {"E4M1", PSX_REVERB_STUDIO_C, 0x2FFF}, {"E4M2", PSX_REVERB_HALL, 0x1FFF}, {"E4M3", PSX_REVERB_STUDIO_B, 0x27FF},
+    {"E4M4", PSX_REVERB_HALL, 0x17FF}, {"E4M8", PSX_REVERB_STUDIO_A, 0x23FF},
+    {"MAP01", PSX_REVERB_SPACE, 0x0FFF}, {"MAP02", PSX_REVERB_STUDIO_C, 0x2FFF}, {"MAP03", PSX_REVERB_HALL, 0x1FFF},
+    {"MAP04", PSX_REVERB_HALL, 0x1FFF}, {"MAP05", PSX_REVERB_STUDIO_B, 0x2DFF}, {"MAP06", PSX_REVERB_SPACE, 0x0FFF},
+    {"MAP07", PSX_REVERB_SPACE, 0x0FFF}, {"MAP08", PSX_REVERB_STUDIO_C, 0x2FFF}, {"MAP09", PSX_REVERB_STUDIO_B, 0x27FF},
+    {"MAP10", PSX_REVERB_HALL, 0x1FFF}, {"MAP11", PSX_REVERB_HALL, 0x1FFF}, {"MAP12", PSX_REVERB_HALL, 0x1FFF},
+    {"MAP14", PSX_REVERB_HALL, 0x1FFF}, {"MAP16", PSX_REVERB_STUDIO_C, 0x2FFF}, {"MAP17", PSX_REVERB_HALL, 0x1FFF},
+    {"MAP18", PSX_REVERB_STUDIO_C, 0x2FFF}, {"MAP19", PSX_REVERB_STUDIO_C, 0x2FFF}, {"MAP21", PSX_REVERB_HALL, 0x1FFF},
+    {"MAP22", PSX_REVERB_STUDIO_B, 0x27FF}, {"MAP23", PSX_REVERB_STUDIO_C, 0x2FFF}, {"MAP25", PSX_REVERB_STUDIO_C, 0x26FF},
+    {"MAP26", PSX_REVERB_STUDIO_B, 0x2DFF}, {"MAP27", PSX_REVERB_STUDIO_B, 0x27FF},
+};
+int Game_PsxReverb(int *preset, int *depth)
+{
+    char map[9];
+    if (gamemode == commercial) snprintf(map, sizeof map, "MAP%02d", gamemap);
+    else snprintf(map, sizeof map, "E%dM%d", gameepisode, gamemap);
+    for (size_t i = 0; i < sizeof psx_reverbs / sizeof psx_reverbs[0]; ++i)
+        if (!strcmp(psx_reverbs[i].map, map)) { *preset = psx_reverbs[i].preset; *depth = psx_reverbs[i].depth; return 1; }
+    return 0;
+}
+int Game_UnderSky(float x, float y)
+{
+    if (gamestate != GS_LEVEL) return 0;
+    subsector_t *at = R_PointInSubsector((fixed_t)(x * FRACUNIT), (fixed_t)(y * FRACUNIT));
+    return at && at->sector && at->sector->ceilingpic == skyflatnum;
 }
 
 void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate, float *warm)

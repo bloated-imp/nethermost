@@ -31,6 +31,8 @@ static int reverb_ids[2];
 int Game_HasEffect(game_effect effect) { return effect == GAME_EFFECT_NATURAL_FALLOFF; }
 int Game_ThinkerIsMobj(const thinker_t *thinker) { return thinker == &monster.thinker; }
 int Game_WeaponHeft(int weapon) { (void)weapon; return 2; }
+int Game_PsxReverb(int *preset, int *depth) { (void)preset; (void)depth; return 0; }
+int Game_UnderSky(float x, float y) { (void)x; (void)y; return 0; }
 float Game_SoundCarry(int id) { (void)id; return 1; }
 void Game_SfxLoaded(int id, void *data) { (void)id; (void)data; }
 const char *Game_SoundName(int id, int type, int weapon) { (void)id; (void)type; (void)weapon; return NULL; }

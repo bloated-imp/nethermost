@@ -134,6 +134,18 @@ Code: `platform/user_sounds.c`, `platform/audio/zip_read.c`,
 `platform/audio/sndinfo.c`, the names monsters answer to in `Game_SoundName`
 (`platform/games/doom/profile.c`); tests: `tests/user_sounds.c`.
 
+## PS1 Reverb
+
+**F4 → Sound → Hearing → Rooms → PS1 reverb** swaps the measured room acoustics
+for the PlayStation's own reverb: its sound chip's reverb unit, rebuilt from the
+psx-spx reference's formula and preset registers, running at the chip's 22050
+Hz. Each level takes the preset and depth PlayStation DOOM gave it (Space on
+E1M1 and MAP01, the studios and Hall elsewhere, from PsyDoom's tables); levels
+it didn't have take its usual Hall. Sounds made under open sky stay dry, and
+music takes none, since the recorded PlayStation tracks carry their own. Echo
+and reverb still sets how much. Code: `platform/audio/psx_reverb.c`,
+`Game_PsxReverb` in `platform/games/doom/profile.c`; test: `tests/psx_reverb.c`.
+
 ## Footstep Volume
 
 **F4 → Sound → Effects → Footstep volume** sets how loud footsteps and splashes
@@ -145,7 +157,6 @@ are (0 to 2, 1.00 as made).
   loaded from a WAD the player supplies.
 - A slower "PS1" movement preset, from the tuning values that feel right, and
   an optional 30 FPS cap.
-- Reverb tuned toward the PlayStation's.
 
 ## Rights
 

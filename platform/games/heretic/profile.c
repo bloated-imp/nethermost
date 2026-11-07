@@ -2,6 +2,7 @@
 #include <math.h>
 #include "doomdef.h"
 #include "p_local.h"
+#include "r_local.h"
 #include "sounds.h"
 #include "i_sound.h"
 #include "../../game_profile.h"
@@ -119,6 +120,15 @@ int Game_BlastFrame(const struct mobj_s *thing)
     if (thing->type != MT_POD || !thing->state) return -1;
     state = (int)(thing->state - states);
     return state >= S_POD_DIE1 && state <= S_POD_DIE4 ? 1 + state - S_POD_DIE1 : -1;
+}
+
+/* The PlayStation never had Heretic: the mixer's default PS1 reverb. */
+int Game_PsxReverb(int *preset, int *depth) { (void)preset; (void)depth; return 0; }
+int Game_UnderSky(float x, float y)
+{
+    if (gamestate != GS_LEVEL) return 0;
+    subsector_t *at = R_PointInSubsector((fixed_t)(x * FRACUNIT), (fixed_t)(y * FRACUNIT));
+    return at && at->sector && at->sector->ceilingpic == skyflatnum;
 }
 
 void Game_MuzzleFlash(int weapon, float *radius, float *strength, int *flashstate, float *warm)
