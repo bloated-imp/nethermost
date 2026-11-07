@@ -90,6 +90,7 @@ struct Settings {
     int aspect=0; // The picture's shape: 0 the window's, 1 a 4:3 box in its middle, black bars beside it (frame.cpp pictureBox).
     int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
     float lightLevel=1; // The sectors' own light levels scaled by this (world.frag, c.levels.x): below 1 the world is darker; lamps, flashes and the flashlight keep theirs.
+    int statusBarPack=1; // A status bar WAD in a hud folder (its status bar graphics only) in place of the game's own (st_stuff.c).
     int ps1Motion=0; // Things, doors and lifts drawn in steps about 15 a second, as the PlayStation's tics moved them (scene.cpp).
     int fireSky=1; // The Hell maps' sky (SKY3) burns as on the PlayStation (scene3d/fire_sky.cpp).
     int ps1Dither=0; // The final colours cut to the PlayStation's 15 bits through its 4x4 ordered dither (present.frag).
@@ -353,7 +354,7 @@ void paceSubmitted(double start);
 using LoadingShow=void(*)(const char *title,const char *stage,float fraction);
 bool loadPending();
 void runLoading(int width,int height,LoadingShow show);
-std::vector<unsigned> hudPixels(const unsigned *pixels);
+std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette);
 std::vector<std::array<float,4>> sectorInfo();
 SurfaceBinding surfaceBinding(int key);
 std::vector<SpriteDraw> weaponDraws(const Uniforms &camera);

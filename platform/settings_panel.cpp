@@ -298,6 +298,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "How bright the world's own light is: 1.00 is DOOM's light levels, lower is darker, for a moodier, more "
                         "PlayStation-like dark. Lamps, sunlight through windows, muzzle flashes and the flashlight shine as before, "
                         "so lit spots stand out more against the dark."),
+                    check("status_bar_pack","Status bar pack",&s.statusBarPack,
+                        "A status bar WAD you put in the hud folder beside doom.cfg (or beside the game), such as PSX Doom HUD "
+                        "for Vanilla, gives the status bar its look: only its status bar graphics are used, none of its sounds, "
+                        "menus or other changes. The first .wad by name. Off, or with no WAD there: the game's own bar."),
                     check("ps1_title","PS1 title screen",&s.ps1Title,
                         "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
                         "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture."),

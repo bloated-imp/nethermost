@@ -157,8 +157,40 @@ static boolean W_LumpNameFits (char *filename)
     return length <= 8;
 }
 
+// A status bar pack (d_main.c adds it with a leading '^'): of its lumps only
+// the status bar's are kept, the rest nameless so nothing finds them. Those
+// are switched by their first letter: 'S' in use, STATUSBAR_OFF not
+// (W_UseStatusBarFile), so the game's own show while the pack is off.
+#define STATUSBAR_OFF	''
+static int	statusbarhandle = -1;
+
+static boolean W_IsStatusBarLump (const char *name)
+{
+    static const char *prefixes[] = { "STBAR", "STARMS", "STF", "STGNUM", "STKEYS", "STTMINUS", "STTNUM",
+				      "STTPRCNT", "STYSNUM" };
+    unsigned i;
+    for (i = 0; i < sizeof prefixes / sizeof prefixes[0]; i++)
+	if (!strncmp (name, prefixes[i], strlen (prefixes[i])))
+	    return true;
+    return false;
+}
+
+int W_HasStatusBarFile (void) { return statusbarhandle != -1; }
+
+void W_UseStatusBarFile (int on)
+{
+    int i;
+    if (statusbarhandle == -1)
+	return;
+    for (i = 0; i < numlumps; i++)
+	if (lumpinfo[i].handle == statusbarhandle && lumpinfo[i].name[1] == 'T'
+	    && (lumpinfo[i].name[0] == 'S' || lumpinfo[i].name[0] == STATUSBAR_OFF))
+	    lumpinfo[i].name[0] = on ? 'S' : STATUSBAR_OFF;
+}
+
 void W_AddFile (char *filename)
 {
+    boolean statusbaronly = false;
     wadinfo_t		header;
     lumpinfo_t*		lump_p;
     unsigned		i;
@@ -170,6 +202,12 @@ void W_AddFile (char *filename)
     int			storehandle;
     
     // open the file and add to directory
+
+    if (filename[0] == '^')
+    {
+	filename++;
+	statusbaronly = true;
+    }
 
     // handle reload indicator.
     if (filename[0] == '~')
@@ -253,7 +291,16 @@ void W_AddFile (char *filename)
 	lump_p->position = LONG(fileinfo->filepos);
 	lump_p->size = LONG(fileinfo->size);
 	strncpy (lump_p->name, fileinfo->name, 8);
+	if (statusbaronly)
+	{
+	    if (W_IsStatusBarLump (lump_p->name))
+		lump_p->name[0] = STATUSBAR_OFF;	// off until W_UseStatusBarFile
+	    else
+		memset (lump_p->name, 0, sizeof lump_p->name);
+	}
     }
+    if (statusbaronly && storehandle != -1)
+	statusbarhandle = storehandle;
 	
     if (reloadname)
 	close (handle);

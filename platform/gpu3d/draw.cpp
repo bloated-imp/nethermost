@@ -203,8 +203,23 @@ void drawOverlays(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
             SDL_BindGPUFragmentSamplers(pass,0,image,3);drawVertices(pass,draw.vertices);
         }
     }
-    SDL_BindGPUGraphicsPipeline(pass,depth?hudPipeline:overlayHudPipeline);
-    SDL_GPUTextureSamplerBinding hudImage={hudTexture,nearestClamp};
+    (void)hud;   // the HUD and the relit face: drawHudLayer, over the presented picture
+    if(!cross.empty()) {
+        setView(pass,view.worldX,view.worldY,view.worldW,view.worldH,&full);
+        SDL_BindGPUGraphicsPipeline(pass,depth?solidPipeline:overlaySolidPipeline);drawVertices(pass,cross);
+    }
+}
+// DOOM's 320x200 HUD (status bar, messages, menus, automap) and the relit
+// face over the presented picture, at the screen's own resolution in the
+// HUD's place there (x, y, w, h in screen pixels). Drawn into the render it
+// took the render's resolution: at 240p each of its 200 rows became 1.2
+// rows, every fifth one doubled, and the upscale magnified that. Here
+// hud.frag's sharp bilinear keeps every HUD pixel the same size.
+void drawHudLayer(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const FrameView &view,
+                  const std::vector<SpriteDraw> &weapons,const std::vector<Vertex> &hud,float x,float y,float w,float h) {
+    SDL_GPUViewport viewport={x,y,w,h,0,1};SDL_SetGPUViewport(pass,&viewport);
+    SDL_BindGPUGraphicsPipeline(pass,settingsPipeline);
+    SDL_GPUTextureSamplerBinding hudImage={hudTexture,linearClamp};
     SDL_BindGPUFragmentSamplers(pass,0,&hudImage,1);
     drawVertices(pass,hud);
     // The relit face over the status bar (its normals turned to face ahead
@@ -212,7 +227,8 @@ void drawOverlays(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
     bool faces=false;
     for(const auto &draw:weapons)faces=faces||draw.overHud;
     if(worldPending&&faces) {
-        SDL_BindGPUGraphicsPipeline(pass,depth?weaponPipeline:overlayWeaponPipeline);bindWorld(pass,nullptr);
+        SDL_BindGPUGraphicsPipeline(pass,layerFacePipeline);bindWorld(pass,nullptr);
+        pushWorldUniforms(command,view.camera);
         float blend[36]={};std::copy(weaponProbe,weaponProbe+24,blend+4);
         SDL_PushGPUFragmentUniformData(command,3,blend,sizeof(blend));
         for(const auto &draw:weapons) {
@@ -220,10 +236,6 @@ void drawOverlays(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
             SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),nearestClamp},{paletteTexture,nearestClamp},{gpu(draw.image->texture),nearestClamp}};
             SDL_BindGPUFragmentSamplers(pass,0,image,3);drawVertices(pass,draw.vertices);
         }
-    }
-    if(!cross.empty()) {
-        setView(pass,view.worldX,view.worldY,view.worldW,view.worldH,&full);
-        SDL_BindGPUGraphicsPipeline(pass,depth?solidPipeline:overlaySolidPipeline);drawVertices(pass,cross);
     }
 }
 void releaseFrameUploads() {

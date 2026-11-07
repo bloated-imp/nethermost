@@ -43,6 +43,7 @@ extern double movewalk, moverun, moveturn, movemomentum, movebob, movebobrate, m
 boolean P_MoveTuning(void);
 extern boolean ps1title;   // the PlayStation-style title (f_firetitle.h)
 const void *ST_Face(int *x,int *y);   // the status bar's face (st_stuff.h)
+void ST_UseStatusBarPack(boolean on);   // a hud folder's status bar WAD or the game's own (st_stuff.h)
 extern boolean quickconfirm; // The game's menu (F4 "Confirm quicksave and quickload").
 extern fixed_t aimslope;
 int P_PicAnimationNext(boolean istexture,int pic,int *next);
@@ -1294,6 +1295,8 @@ void dryIceIntakeShutdown();
 
 // space.cpp
 void spaceShutdown();
+// The WAD lump a cached patch came from; -1 for one made in code (weapon.cpp).
+int lumpOfPatch(const void *patch);
 // The Hell sky burning (fire_sky.cpp): fireSkyTick each frame; fireSkyImage
 // the texture standing in for the sky, null while the painted one shows.
 void fireSkyTick();

@@ -82,6 +82,11 @@ void    W_ReadLump (int lump, void *dest);
 void*	W_CacheLumpNum (int lump, int tag);
 void*	W_CacheLumpName (char* name, int tag);
 
+// A status bar pack (W_AddFile's '^'): whether one was added, and its
+// status bar graphics in use or not (the game's own then).
+int	W_HasStatusBarFile (void);
+void	W_UseStatusBarFile (int on);
+
 
 
 

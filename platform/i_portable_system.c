@@ -155,6 +155,36 @@ const char *I_ProgramFile(const char *name)
     return NULL;
 #endif
 }
+// A status bar pack (F4 Retro look, Status bar pack): the first .wad by name
+// in a hud folder in the save folder (the working directory, beside
+// doom.cfg), else in one beside the game. Only its status bar graphics are
+// used (W_AddFile's '^'); NULL when there is none.
+const char *I_StatusBarPack(void)
+{
+#ifdef DOOM_NATIVE
+    static char path[4096];
+    char folders[2][4096];
+    int count = 0;
+    snprintf(folders[count++], sizeof folders[0], "hud");
+    const char *base = SDL_GetBasePath();
+    if (base) snprintf(folders[count++], sizeof folders[0], "%shud", base);
+    for (int f = 0; f < count; ++f)
+    {
+        int found = 0;
+        char **names = SDL_GlobDirectory(folders[f], "*.wad", SDL_GLOB_CASEINSENSITIVE, &found);
+        if (!names) continue;
+        const char *first = NULL;
+        for (int i = 0; i < found; ++i)
+            if (!first || SDL_strcasecmp(names[i], first) < 0) first = names[i];
+        if (first) snprintf(path, sizeof path, "%s/%s", folders[f], first);
+        SDL_free(names);
+        if (first) return path;
+    }
+    return NULL;
+#else
+    return NULL;
+#endif
+}
 void I_EndRead(void) { }
 void I_Tactile(int on, int off, int total)
 {

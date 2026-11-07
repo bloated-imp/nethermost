@@ -89,6 +89,8 @@ void I_Tactile (int on, int off, int total);
 // A file shipped beside the program (in the Mac app, its Resources), or
 // NULL: none there, or a build without one (headless).
 const char* I_ProgramFile (const char* name);
+// A status bar pack in a hud folder (i_portable_system.c); NULL for none.
+const char* I_StatusBarPack (void);
 
 
 _Noreturn void I_Error (char *error, ...);

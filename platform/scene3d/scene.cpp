@@ -188,6 +188,7 @@ void applySettings() {
     I_SetUserSounds(settings.userSounds);
     I_SetMadeSounds(settings.madeImpacts,settings.glassSound,settings.ambience,settings.ambienceAmount,settings.footsteps);
     I_SetFootstepVolume(settings.footstepVolume);
+    ST_UseStatusBarPack(settings.statusBarPack!=0);
     I_SetPsxReverb(settings.ps1Reverb);
     I_SetAlternativeComputerSounds(settings.alternativeComputerSounds);
     I_AmbienceShowGlass(settings.accelerated&&settings.windowGlass);
@@ -647,9 +648,25 @@ FrameView prepareFrame(int w,int h) {
     view.worldX=worldX;view.worldY=worldY;view.worldW=worldW;view.worldH=worldH;
     return view;
 }
-std::vector<unsigned> hudPixels(const unsigned *pixels) {
+std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette) {
     std::vector<unsigned> overlay(pixels,pixels+SCREENWIDTH*SCREENHEIGHT);
     if(worldPending) for(int i=0;i<SCREENWIDTH*SCREENHEIGHT;++i)overlay[i]=(overlay[i]&0xffffff)|(unsigned)v_overlaymask[i]<<24;
+    // The relit face (weapon.cpp) stands in for the status bar's own: under
+    // it the bar's background (st_stuff.c keeps it in screens[4]) shows, not
+    // DOOM's unlit face, which at the screen's resolution would peek out in
+    // a thin bright line along the silhouette where the HUD's sharp edges
+    // and the face's hard ones meet.
+    int faceX=0,faceY=0;
+    const void *face=worldPending&&settings.faceLighting&&settings.weaponLighting&&screens[4]?ST_Face(&faceX,&faceY):nullptr;
+    if(face&&lumpOfPatch(face)>=0) {
+        const short *size=(const short*)face;   // patch_t: width, height, left and top offsets
+        int x0=faceX-size[2],y0=faceY-size[3],barTop=SCREENHEIGHT-32;
+        for(int y=std::max(y0,barTop);y<std::min(y0+size[1],SCREENHEIGHT);++y)
+            for(int x=std::max(x0,0);x<std::min(x0+size[0],SCREENWIDTH);++x) {
+                unsigned &at=overlay[(size_t)y*SCREENWIDTH+x];
+                at=(palette[screens[4][(y-barTop)*SCREENWIDTH+x]]&0xffffff)|(at&0xff000000u);
+            }
+    }
     return overlay;
 }
 // The sky sector a stretch of open air under a roof (a porch, a doorless

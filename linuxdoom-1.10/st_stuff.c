@@ -1306,6 +1306,24 @@ void ST_unloadData(void)
     ST_unloadGraphics();
 }
 
+// F4 Retro look, Status bar pack: the pack's status bar graphics (a WAD in a
+// hud folder, w_wad.c) or the game's own, reloaded and redrawn when it
+// changes after ST_Init.
+static boolean	st_loaded;
+void ST_UseStatusBarPack (boolean on)
+{
+    static int	current = -1;
+    if (!W_HasStatusBarFile () || current == (on != 0))
+	return;
+    current = on != 0;
+    W_UseStatusBarFile (on);
+    if (!st_loaded)
+	return;
+    ST_unloadGraphics ();
+    ST_loadGraphics ();
+    st_firsttime = true;
+}
+
 void ST_initData(void)
 {
 
@@ -1535,5 +1553,6 @@ void ST_Init (void)
 {
     veryfirsttime = 0;
     ST_loadData();
+    st_loaded = true;
     screens[4] = (byte *) Z_Malloc(ST_WIDTH*ST_HEIGHT, PU_STATIC, 0);
 }

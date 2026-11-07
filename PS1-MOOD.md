@@ -134,6 +134,22 @@ Code: `platform/user_sounds.c`, `platform/audio/zip_read.c`,
 `platform/audio/sndinfo.c`, the names monsters answer to in `Game_SoundName`
 (`platform/games/doom/profile.c`); tests: `tests/user_sounds.c`.
 
+## Status Bar Pack
+
+A WAD that restyles DOOM's status bar can give it its look, such as Kippykip's
+PSX Doom HUD for Vanilla (PlayStation-style art in DOOM's layout). None ships
+with the game.
+
+1. Put the WAD in a `hud` folder in the game's save folder (beside doom.cfg),
+   or in one beside the game. The first `.wad` by name is used.
+2. **F4 → Graphics → Display → Retro look → Status bar pack** (on by default)
+   switches between its bar and the game's own, at once.
+
+Only its status bar graphics are used (STBAR, STARMS, the numbers, keys and
+faces); its sounds, menus, fonts and DEHACKED are left out. A `-file` mod's own
+bar still wins. Code: `W_AddFile`'s `^` in `linuxdoom-1.10/w_wad.c`,
+`ST_UseStatusBarPack` in `st_stuff.c`, `I_StatusBarPack`.
+
 ## PS1 Reverb
 
 **F4 → Sound → Hearing → Rooms → PS1 reverb** swaps the measured room acoustics

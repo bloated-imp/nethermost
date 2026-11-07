@@ -152,7 +152,7 @@ static void lightScreenQuad(std::vector<Vertex> &quad,const Uniforms &camera,pla
 }
 // The WAD lump a cached patch came from (the status bar keeps patches, not
 // lumps); -1 for one made in code.
-static int lumpOfPatch(const void *patch) {
+int lumpOfPatch(const void *patch) {
     static std::map<const void*,int> known;
     auto found=known.find(patch);if(found!=known.end())return found->second;
     int lump=-1;

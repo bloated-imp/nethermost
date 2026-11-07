@@ -50,6 +50,8 @@ void ST_Drawer (boolean fullscreen, boolean refresh);
 
 // The status bar's face now (a patch_t) and its place; NULL with the bar off.
 const void* ST_Face (int* x, int* y);
+// A status bar pack's graphics (a WAD in a hud folder) or the game's own.
+void ST_UseStatusBarPack (boolean on);
 
 // Called when the console player is spawned on each level.
 void ST_Start (void);

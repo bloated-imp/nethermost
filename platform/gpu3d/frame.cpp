@@ -30,6 +30,9 @@ static void pictureBox(int targetWidth,int targetHeight,int &x,int &y,int &w,int
 // The render stretched over a target of targetWidth x targetHeight (into its
 // picture box): the HUD's place, then the upscale mode (settings.upscale) and
 // screen pixels per render pixel; then PS1 dithering (settings.ps1Dither).
+// This frame's HUD quad and weapon draws (the relit face among them), for drawHudLayer.
+static const std::vector<Vertex> *presentHud;
+static const std::vector<SpriteDraw> *presentWeapons;
 static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const FrameView &view,int targetWidth,int targetHeight) {
     int boxX,boxY,boxW,boxH;pictureBox(targetWidth,targetHeight,boxX,boxY,boxW,boxH);
     bool bars=boxW!=targetWidth||boxH!=targetHeight;
@@ -54,6 +57,11 @@ static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const F
     if(bars) {SDL_GPUViewport box={(float)boxX,(float)boxY,(float)boxW,(float)boxH,0,1};SDL_SetGPUViewport(pass,&box);}
     SDL_BindGPUVertexSamplers(pass,0,&samplers[1],1);   // the bloom, for how much of it the view keeps
     SDL_DrawGPUPrimitives(pass,3,1,0,0);
+    // The HUD in its place in the box, at the screen's resolution.
+    if(presentHud&&presentWeapons) {
+        float sx=(float)boxW/width,sy=(float)boxH/height;
+        drawHudLayer(command,pass,view,*presentWeapons,*presentHud,boxX+view.uiX*sx,boxY+view.uiY*sy,view.uiWidth*sx,view.uiHeight*sy);
+    }
     // The overlays and the settings panel use the whole screen, bars and all.
     if(bars) {SDL_GPUViewport whole={0,0,(float)targetWidth,(float)targetHeight,0,1};SDL_SetGPUViewport(pass,&whole);}
 #ifdef DOOM_DEVTOOLS
@@ -457,7 +465,7 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette) {
         fprintf(stderr,"GPU resolution: %dx%d (display %ux%u).\n",w,h,drawableWidth,drawableHeight);
     }
     if(!paletteLUT||((settings.palette||(settings.reflections&&settings.retroReflections))&&worldPending))updatePaletteLUT(palette);
-    std::vector<unsigned> overlay=hudPixels(pixels);
+    std::vector<unsigned> overlay=hudPixels(pixels,palette);
     FrameView view=prepareFrame(w,h);Uniforms &camera=view.camera;
     uint64_t prepared=SDL_GetTicksNS();
     bool drawMist=!mistVertices.empty()||!shaftVertices.empty();
@@ -499,6 +507,7 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette) {
     drawMainView(render,view,camera,drawMist,msaa,weapons,hud,cross);
     if(camera.materials[1]>0)drawBloom(render,view,camera,weapons);
     if(render!=command)submitProfiled(render,frameStart);
+    presentHud=&hud;presentWeapons=&weapons;
     if(swapchain)present(command,swapchain,view,(int)drawableWidth,(int)drawableHeight);
     flushUploads();
     if(screenshotPending||renderCheckDue()) {screenshotPending=false;capture(command,view,(int)drawableWidth,(int)drawableHeight);}
