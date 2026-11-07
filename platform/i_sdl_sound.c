@@ -128,6 +128,7 @@ static beyond_t beyond;
 static float coupling, coupling_target, next_beyond;
 static float limiter_gain = 1;
 static int made_impacts = 1, glass_fracture, ambience = 1, footsteps = 1;
+static float footstep_volume = 1;
 static float ambience_amount = 1, duck = 1;
 
 static unsigned little16(const byte *p) { return p[0] | (unsigned)p[1] << 8; }
@@ -422,7 +423,8 @@ void I_UpdateSound(void)
         step_event_t steps[8];
         int count = footsteps ? Steps_Tic(steps, 8) : 0;
         for (int i = 0; i < count; ++i)
-            play_kind(steps[i].kind, steps[i].x, steps[i].y, steps[i].z, steps[i].level, 1, steps[i].personal);
+            if (footstep_volume > 0)
+                play_kind(steps[i].kind, steps[i].x, steps[i].y, steps[i].z, steps[i].level * footstep_volume, 1, steps[i].personal);
         /* Now and then something behind the walls, with the ambience. */
         hidden_event_t hidden;
         if (ambience && Hidden_Tic(&hidden))
@@ -741,6 +743,10 @@ void I_SetMadeSounds(int impacts, int glass, int ambient, float amount, int step
     ambience = ambient != 0;
     ambience_amount = SDL_clamp(amount, 0.0f, 2.0f);
     if (stream) SDL_UnlockAudioStream(stream);
+}
+void I_SetFootstepVolume(float volume)
+{
+    footstep_volume = SDL_clamp(volume, 0.0f, 2.0f);
 }
 void I_SetAlternativeComputerSounds(int enabled)
 {

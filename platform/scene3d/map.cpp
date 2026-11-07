@@ -303,6 +303,8 @@ void buildMap() {
     fprintf(stderr,"3D map: %d subsectors, %zu floor triangles, %d lines.\n",numsubsectors,triangles,numlines);
 }
 float sectorHeight(const sector_t *sector,bool ceiling) {
+    float stepped;
+    if(heldHeight(sector,ceiling,stepped))return stepped;   // PS1 motion (scene.cpp)
     float now=units(ceiling?sector->ceilingheight:sector->floorheight);
     size_t index=sector-sectors;
     if(index>=oldHeights.size())return now;

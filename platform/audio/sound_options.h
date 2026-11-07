@@ -21,6 +21,8 @@ void I_SetUserSounds(int enabled);
    sounds of lamps, machines, liquids, fire and wind, at amount (0-2); steps:
    the player's footsteps and splashes, and monsters splashing. */
 void I_SetMadeSounds(int impacts, int glass, int ambient, float amount, int steps);
+/* How loud the footsteps and splashes play (0-2, 1 as made). */
+void I_SetFootstepVolume(float volume);
 /* Computer ambience: machine hum, hard-drive seeks and relay chatter instead of bleeps. */
 void I_SetAlternativeComputerSounds(int enabled);
 /* A made-up effect (an IMPACT_ kind of audio/impact_synth.h) at a map point. */

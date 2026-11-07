@@ -47,12 +47,35 @@ static uint64_t titleTime;
 static int frameCount;
 static float fps;
 static std::unordered_map<const mobj_t*, std::array<float,3>> oldThings;
+// PS1 motion (settings.ps1Motion): the world as it stood at the start of
+// every second tic, drawn as it is, so things, doors and lifts move in
+// steps about 15 a second as the PlayStation's game tics moved them. The
+// game itself still runs at 35; the view stays smooth. Taken in beforeTic.
+static std::unordered_map<const mobj_t*, std::array<float,3>> heldThings;
+static std::vector<std::array<float,2>> heldHeights;
+static int heldSector=-1;   // the floor under the player: held, it would step under a smooth view
+static bool held(const mobj_t &thing,float &x,float &y,float &z) {
+    if(!settings.ps1Motion||Game_Carried(&thing))return false;
+    auto at=heldThings.find(&thing);
+    if(at==heldThings.end())return false;
+    // Teleported since: where it is now.
+    if(std::hypot(units(thing.x)-at->second[0],units(thing.y)-at->second[1])>=128)return false;
+    x=at->second[0];y=at->second[1];z=at->second[2];
+    return true;
+}
+bool heldHeight(const sector_t *sector,bool ceiling,float &height) {
+    size_t index=sector-sectors;
+    if(!settings.ps1Motion||index>=heldHeights.size()||(int)index==heldSector)return false;
+    height=heldHeights[index][ceiling];
+    return true;
+}
 // What the game carried things by since the last tic began.
 static void worldShifted(float &dx,float &dy,float &dz) {
     Game_WorldShift(&dx,&dy,&dz);
     dx=Game_ShiftGrew(dx,oldShift[0]);dy=Game_ShiftGrew(dy,oldShift[1]);dz=Game_ShiftGrew(dz,oldShift[2]);
 }
 void interpolatedPosition(const mobj_t &thing,float fraction,float &x,float &y,float &z) {
+    if(held(thing,x,y,z))return;
     x=units(thing.x);y=units(thing.y);z=units(thing.z);
     auto old=oldThings.find(&thing);
     if(old==oldThings.end())return;
@@ -96,6 +119,9 @@ static void beforeTic() {
     for(int i=0;i<numsectors;++i) oldHeights[i]={units(sectors[i].floorheight),units(sectors[i].ceilingheight)};
     for(int i=0;i<numsectors;++i) for(mobj_t *thing=sectors[i].thinglist;thing;thing=thing->snext)
         oldThings.emplace(thing,std::array<float,3>{units(thing->x),units(thing->y),units(thing->z)});
+    if(settings.ps1Motion&&(!(gametic&1)||heldHeights.size()!=oldHeights.size())) {heldThings=oldThings;heldHeights=oldHeights;}
+    else if(!settings.ps1Motion&&!heldHeights.empty()) {heldThings.clear();heldHeights.clear();}
+    heldSector=mo->subsector?(int)(mo->subsector->sector-sectors):-1;
     timed(Stat::Liquids,watchSplashes);
     timed(Stat::Bodies,[]{ragdollTestTic();watchBodies();});
     timed(Stat::Blood,watchSpray);
@@ -161,6 +187,7 @@ void applySettings() {
     I_SetSfxPlayback(settings.sfxResampling,settings.sfxTreble);
     I_SetUserSounds(settings.userSounds);
     I_SetMadeSounds(settings.madeImpacts,settings.glassSound,settings.ambience,settings.ambienceAmount,settings.footsteps);
+    I_SetFootstepVolume(settings.footstepVolume);
     I_SetAlternativeComputerSounds(settings.alternativeComputerSounds);
     I_AmbienceShowGlass(settings.accelerated&&settings.windowGlass);
     I_SetMusicDevice(settings.musicDevice);
@@ -197,7 +224,7 @@ void sceneInit(SDL_Window *window) {
 void sceneShutdown() {
     stopRelight();
     R_AcceleratedView=nullptr;R_BeforeTic=nullptr;R_MuzzleFlash=nullptr;R_WallImpact=nullptr;R_BloodHit=nullptr;R_BloodSpilled=nullptr;R_DamageHit=nullptr;R_PlaneImpact=nullptr;R_ShotPassed=nullptr;R_GlassStruck=nullptr;R_RainedIn=nullptr;r_uncapped=0;v_overlayactive=0;
-    lightBlockers.clear();flashes={};oldThings.clear();oldHeights.clear();
+    lightBlockers.clear();flashes={};oldThings.clear();oldHeights.clear();heldThings.clear();heldHeights.clear();
     batches.clear();shadowBatches.clear();decalBatches.clear();mirrorBatches.clear();particleVertices.clear();glowVertices.clear();
     mistVertices.clear();skyVertices.clear();shaftVertices.clear();heatVertices.clear();
     imagesShutdown();mapShutdown();causticsShutdown();clearSurfaceLights();lightsShutdown();glassLightShutdown();exposureShutdown();spaceShutdown();fireSkyShutdown();
@@ -212,7 +239,7 @@ static void startLevel() {
     stopRelight();
     batches.clear();shadowBatches.clear();mirrorBatches.clear();clearSurfaceLights();shotLightsShutdown();
     bakeAtlasNewLevel();sunNewLevel();lightBakeNewLevel();clearStaticGrid();indirectNewLevel();
-    oldThings.clear();oldHeights.clear();ticSaved=false;
+    oldThings.clear();oldHeights.clear();heldThings.clear();heldHeights.clear();ticSaved=false;
     Rooms_Build();   // what the level's spaces are (rooms.c), before anything reads them
     buildMap();
     weatherNewLevel(); // the sun's place and the wind, before anything bakes by them
@@ -580,6 +607,7 @@ FrameView prepareFrame(int w,int h) {
         if(skytexture!=tintedSky){skyTint=skyColor();horizon=skyHorizon();tintedSky=skytexture;}
         fireSkyTick();
         camera.phobos[3]=fireSkyImage()?1:0;   // the PS1 fire sky, drawn crisp (sky.frag)
+        camera.levels[0]=settings.lightLevel;   // the sectors' light levels scaled (world.frag)
         for(int c=0;c<3;++c)camera.fx[1+c]=skyTint[c];
         // Outdoor haze in the sky's horizon color (Game_Sun), with the fog.
         for(int c=0;c<3;++c)camera.haze[c]=horizon[c]*camera.mood[0]*camera.mood[1+c];

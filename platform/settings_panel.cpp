@@ -294,6 +294,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                 {"Retro look",{
                     check("retro","Retro scanlines",&s.retro,"Dark lines between the rows of the picture, like an old CRT monitor."),
                     check("palette","Doom palette colors",&s.palette,"Quantize the final lighting and fog to the current WAD palette."),
+                    slider("light_level","Light level",&s.lightLevel,0.4,1.2,0.05,
+                        "How bright the world's own light is: 1.00 is DOOM's light levels, lower is darker, for a moodier, more "
+                        "PlayStation-like dark. Lamps, sunlight through windows, muzzle flashes and the flashlight shine as before, "
+                        "so lit spots stand out more against the dark."),
                     check("ps1_title","PS1 title screen",&s.ps1Title,
                         "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
                         "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture."),
@@ -301,6 +305,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "On the Hell maps the sky is a wall of fire, flames licking up from the horizon into the black, as on "
                         "the PlayStation. In DOOM's third episode and DOOM II's last third (wherever the map uses the Hell sky, "
                         "SKY3), drawn in the WAD's own palette. Off: the painted sky."),
+                    check("ps1_motion","PS1 motion",&s.ps1Motion,
+                        "Monsters, projectiles, doors and lifts move in steps, about 15 a second, as on the PlayStation, whose game "
+                        "ran at that rate. The game itself runs as always, so controls, demos and timing are unchanged, and your own "
+                        "view stays smooth; pair it with a 30 frame limit for the whole PlayStation look."),
                     check("ps1_dither","PS1 dithering",&s.ps1Dither,
                         "The colours cut to the PlayStation's 15 bits through its fine 4x4 dither pattern, which breaks smooth "
                         "shading and fog into a grain. The pattern sits on the render's pixels, so it is coarser at lower "
@@ -604,6 +612,9 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "Your steps sound by what the floor is: stone, metal, wood, grass and carpet. In water you splash, "
                         "in nukage, slime, blood and lava it gloops, and monsters wading through liquids splash too. "
                         "Monsters on dry floors stay as silent as ever."),
+                    slider("footstep_volume","Footstep volume",&s.footstepVolume,0,2,0.05,
+                        "How loud your footsteps and splashes are, and monsters' splashes, next to the other effects. 1.00 as made.",
+                        [](const Settings &d){return d.footsteps!=0;}),
                     check("ambience","Ambience",&s.ambience,
                         "Lamps, door lights and computers hum, nukage and blood bubble, lava rumbles, fire crackles, water drips and wind blows "
                         "under the sky, heard dull through window glass until it is shot, where the map shows them. Only near ones are heard; "

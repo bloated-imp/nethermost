@@ -12,12 +12,15 @@ float weaponCreep(vec3 n,vec3 view,vec3 toLight,out float mirror) {
     mirror=mirror>0.4?1.4:mirror>0.15?0.5:0.0;
     return ahead*ahead*around*(0.1+0.9*edge*edge);
 }
+// F4 Light level (c.levels.x) on what the weapon sees around it: the room
+// it reflects is as much darker as the room itself.
+float roomLevel() {return c.levels.x>0.0?c.levels.x:1.0;}
 // The weapon's surroundings toward a direction in the view's frame (x
 // right, y up, z ahead), blended as an ambient cube.
 vec3 weaponSurroundings(vec3 d) {
     vec3 w=d*d;
-    return w.x*(d.x>0.0?weaponProbe[2]:weaponProbe[3]).rgb+w.y*(d.y>0.0?weaponProbe[4]:weaponProbe[5]).rgb+
-           w.z*(d.z>0.0?weaponProbe[0]:weaponProbe[1]).rgb;
+    return roomLevel()*(w.x*(d.x>0.0?weaponProbe[2]:weaponProbe[3]).rgb+w.y*(d.y>0.0?weaponProbe[4]:weaponProbe[5]).rgb+
+           w.z*(d.z>0.0?weaponProbe[0]:weaponProbe[1]).rgb);
 }
 // MODE_SCREEN|MODE_RELIT: the relit weapon (weaponDraws, weapon_lighting.h). Its
 // painted light was taken out at load; its normals face the viewer, and
@@ -118,8 +121,8 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     vec3 upperReflection=weaponSurroundings(frame*reflect(-view,upperNormal));
     specular+=round(upperReflection*weaponGloss*upper*0.8*surroundings*16.0)/16.0;
     float aheadMirror;
-    environment+=weaponProbe[0].rgb*(0.12+0.6*weaponCreep(n,view,c.forward.xyz,aheadMirror));
-    specular+=weaponProbe[0].rgb*weaponGloss*aheadMirror*0.4*surroundings;
+    environment+=roomLevel()*weaponProbe[0].rgb*(0.12+0.6*weaponCreep(n,view,c.forward.xyz,aheadMirror));
+    specular+=roomLevel()*weaponProbe[0].rgb*weaponGloss*aheadMirror*0.4*surroundings;
     uvec2 mask=vLightMask;
     while(any(notEqual(mask,uvec2(0)))) {
         uint word=mask.x!=0u?0u:1u;
@@ -134,6 +137,12 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         // the edges; it comes from the gun out in front, a little low.
         if((vMode&MODE_FACE)!=0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
             toLight=normalize(c.forward.xyz-0.3*c.up.xyz);
+        // On the weapon, the player's own flash shines from out past the
+        // muzzle, ahead of the gun, not from inside it at the player's
+        // middle: it rims and creeps over the gun from in front rather than
+        // flooding the whole of it.
+        else if((vMode&MODE_FACE)==0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
+            toLight=normalize(c.eye.xyz+48.0*c.forward.xyz-6.0*c.up.xyz-weaponAt);
         float facing=saturate(dot(n,toLight));
         float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
         // A static light's light already arrives in the tint, and a

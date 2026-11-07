@@ -261,7 +261,13 @@ void main() {
     bool mapped=(vMode>>MODE_SECTOR_SHIFT)>0u&&!sprite&&c.effects.z==0.0;
     uint sector=mapped?(vMode>>MODE_SECTOR_SHIFT)-1u:0u;
     SectorLit lit=sectorLighting(normal,mapped,sector,bakeFlags);
-    float light=lit.light;
+    // F4 Light level (c.levels.x): the sectors' own light levels scaled, so
+    // the world can be darker; lamps, flashes and the flashlight keep theirs.
+    // Weapon and face take the sector's light too, so they darken with it;
+    // fullbright frames (projectiles, torches, the gun firing) never do.
+    bool fullbright=sprite&&(vLampTint>>24)==0u;   // fullbrightTint (scene3d.h)
+    float levelScale=fullbright||c.levels.x<=0.0?1.0:c.levels.x;
+    float light=lit.light*levelScale;
     // Weather and wear (world/wear.glsl): streaks, wet ground and snow.
     Wear wear=Wear(0.0,0.0,false,0.0,0.0,0.0,0.0,0.0,false,0.0,vec2(0.0));
     if(mapped&&!blood&&!glassy&&cycleMean.a==0.0) {wear=surfaceWear(vWorld-vec3(0.0,0.0,vLift),normal,vUV.x,sector,bakeFlags);snowWear=wear.snow;}
@@ -296,7 +302,9 @@ void main() {
     if(c.effects.z==0.0) {
         // Sprites carry their baked light (and, without detail, their
         // dynamic light) in the tint.
-        vec3 pulse=sprite?vTint*grounding:vec3(0);
+        // Sprites, the weapon and the face bring their room light in the tint:
+        // the Light level scales it too, so they darken with the world.
+        vec3 pulse=sprite?vTint*grounding*levelScale:vec3(0);
         if(sprite&&(vMode&(MODE_SCREEN|MODE_RELIT))==MODE_RELIT) billboardLight(color,pulse,specular);
         if(weapon) weaponLight(relit,light,pulse,specular);
         if(!sprite) surfaceLight(lit,mapped,normal,screenNormal,glassy,blood,color,dp1,dp2,duv1,duv2,pulse,specular);
@@ -367,7 +375,7 @@ void main() {
     // only part of the way (a red room tints the face, not floods it), and
     // never far past full brightness. Its light comes in the colormaps'
     // 1/16 steps: crisp per pixel, on the painted colors' own hues.
-    if((vMode&MODE_FACE)!=0u) {
+    if(sprite&&(vMode&(MODE_SCREEN|MODE_RELIT|MODE_FACE))==(MODE_SCREEN|MODE_RELIT|MODE_FACE)) {
         float level=dot(illumination,vec3(0.299,0.587,0.114));
         illumination=min(mix(vec3(level),illumination,0.45),vec3(1.25));
         illumination=round(illumination*16.0)/16.0;

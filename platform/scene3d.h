@@ -50,6 +50,10 @@ struct Point { float x,y; };
 // on walls, a seed per wall section so their uneven tiles differ (tiles.glsl).
 // lampTint: the sector light's color from the lamps around a sprite (lampTint
 // in baked_lighting.h), unorm bytes; white for surfaces, which compute their own.
+// A sprite's lampTint for a fullbright frame: white, alpha 0. Sprites read no
+// lamp-tint alpha otherwise, so world.frag knows it by that (the F4 Light level
+// leaves it alone).
+constexpr unsigned fullbrightTint=0x00FFFFFFu;
 struct Vertex { float x,y,z,u,v,light; unsigned mode; float red=0,green=0,blue=0; unsigned lightMask[2]={}; float sunU=-1,sunV=0; unsigned statics=0; unsigned lampTint=0xFFFFFFFFu; float lift=0; };
 // right.w: where the wear records start in the sector buffer (0: none);
 // forward.w, up.w: how wet the windows and the ground under the sky are.
@@ -63,8 +67,8 @@ struct Vertex { float x,y,z,u,v,light; unsigned mode; float red=0,green=0,blue=0
 // farFog, farFogRange: a distance fog as in Turok (DERPINFO farfog): colour (rgb), on (w); clear to range.x, solid from range.y.
 // rush: the fall's smear (rush.cpp, rush.glsl): the point it falls toward in screen uv, homogeneous (xyz), how hard (w).
 // eyes: the player's (eyes.cpp): lids closed (x, 0-1), dark (y, 0-1).
-struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4]; };
-static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==736,"Shader buffer layout");
+struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4]; };
+static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==752,"Shader buffer layout");
 using Flash=doom_flash_t;
 // 63 lights keep the FlashSet uniform block under 4 KB and fit the 64-bit light masks.
 constexpr unsigned maxLights=63;
@@ -85,6 +89,8 @@ struct Settings {
     int upscale=0; // The render stretched to the window: 0 smooth (bilinear), 1 crisp (nearest), 2 sharp bilinear.
     int aspect=0; // The picture's shape: 0 the window's, 1 a 4:3 box in its middle, black bars beside it (frame.cpp pictureBox).
     int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
+    float lightLevel=1; // The sectors' own light levels scaled by this (world.frag, c.levels.x): below 1 the world is darker; lamps, flashes and the flashlight keep theirs.
+    int ps1Motion=0; // Things, doors and lifts drawn in steps about 15 a second, as the PlayStation's tics moved them (scene.cpp).
     int fireSky=1; // The Hell maps' sky (SKY3) burns as on the PlayStation (scene3d/fire_sky.cpp).
     int ps1Dither=0; // The final colours cut to the PlayStation's 15 bits through its 4x4 ordered dither (present.frag).
     int invertLook=0; // Mouse look: moving the mouse forward tilts the view down.
@@ -220,6 +226,7 @@ struct Settings {
     int ambience=1; // Lamps, machines, liquids, fire and wind sound where the map's textures show them.
     int alternativeComputerSounds=0; // Machine hum, hard-drive seeks and relay chatter in place of the computer bleeps.
     float ambienceAmount=1; // How loud the ambience is next to the effects (0-2).
+    float footstepVolume=1; // How loud the footsteps and splashes are (0-2; I_SetFootstepVolume).
     int footsteps=1; // The player's footsteps by floor, splashes in liquids, monsters splashing as they wade.
     // Performance: cheaper stand-ins for per-frame light work.
     int bakeOnlyLights=0; // Static lights only in the bake, with its light direction and flicker groups; pools as area lights.

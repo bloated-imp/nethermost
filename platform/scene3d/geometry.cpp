@@ -723,7 +723,9 @@ static void addThing(mobj_t *thing,int i,const Uniforms &camera,float fraction,c
         packedStatics|=(unsigned)std::lround(std::clamp(towards/statics.amount,0.0f,1.0f)*255)<<24;
     }
     if(death.frame&FF_FULLBRIGHT) pulse={};
-    unsigned tint=death.frame&FF_FULLBRIGHT?0xFFFFFFFFu:packedLampTint(statics,light);
+    // A fullbright frame: white, its alpha 0 (sprites read no lamp-tint
+    // alpha otherwise) so the F4 Light level leaves it alone (world.frag).
+    unsigned tint=death.frame&FF_FULLBRIGHT?fullbrightTint:packedLampTint(statics,light);
     // MODE_GROUNDED: grounding darkens the feet of things that rest on the floor.
     // Sprites have no sun map, so vSun carries strength and height above floor.
     float lift=units(thing->z-thing->floorz)+(posed?pose.lift:0),grounding=1-lift/32;

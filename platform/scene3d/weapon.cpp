@@ -186,6 +186,7 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
                 seamLightAt(camera.eye[0],camera.eye[1],player->mo->subsector->sector,lighting(player->mo->subsector->sector))));
         screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,image.height/100.0f,u0,0,u1,image.height,light,
             MODE_SCREEN|MODE_SPRITE|(relit?MODE_RELIT|(sf.flip[0]?MODE_FLIPPED:0u):0u));
+        if(bright)for(auto &vertex:weapon)vertex.lampTint=fullbrightTint;   // the gun firing: the Light level leaves it alone
         if(!bright)lightScreenQuad(weapon,camera,player,light,relit,false);
         draws.push_back({&image,std::move(weapon)});
     }

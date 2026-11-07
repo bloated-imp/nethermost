@@ -79,6 +79,14 @@ In **F4 → Graphics**:
   PSXDOOM-RE) at about its 15 updates a second, in its 37 fire colours, drawn
   crisp with none of the painted sky's softening or haze.
 
+- **Retro look → Light level** scales the rooms' own light (0.40 to 1.20, 1.00
+  DOOM's): walls, floors, monsters, the weapon and the face darken, while lamps,
+  window light, muzzle flashes, projectiles, fullbright frames and the
+  flashlight keep their strength, so lit spots stand out against the dark.
+- **Retro look → PS1 motion** draws monsters, projectiles, doors and lifts in
+  steps about 15 a second, as the PlayStation's game tics moved them; the game
+  still runs at 35 and your view stays smooth.
+
 Code: `linuxdoom-1.10/f_firetitle.c`, `platform/scene3d/fire_sky.cpp`, `pictureBox` in `platform/gpu3d/frame.cpp`, `ps1Dither` in
 `platform/shaders/present.frag`.
 
@@ -125,6 +133,11 @@ that can't be read.
 Code: `platform/user_sounds.c`, `platform/audio/zip_read.c`,
 `platform/audio/sndinfo.c`, the names monsters answer to in `Game_SoundName`
 (`platform/games/doom/profile.c`); tests: `tests/user_sounds.c`.
+
+## Footstep Volume
+
+**F4 → Sound → Effects → Footstep volume** sets how loud footsteps and splashes
+are (0 to 2, 1.00 as made).
 
 ## Planned
 

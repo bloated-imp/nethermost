@@ -119,6 +119,8 @@ struct WallHit { int line=-1,side=0,section=0; float t=0; };
 extern unsigned levelSerial;
 // Sector heights at the previous tic; doors and lifts blend like moving things.
 extern std::vector<std::array<float,2>> oldHeights;
+// PS1 motion: a sector's floor or ceiling as it stood at the last even tic (scene.cpp).
+bool heldHeight(const sector_t *sector,bool ceiling,float &height);
 extern float renderFraction;
 extern bool ticSaved;   // the last tic's places are saved to blend from (beforeTic)
 void saveWeaponPlace(); // weapon.cpp: the weapon's place at the last tic
