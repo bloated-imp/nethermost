@@ -1292,6 +1292,11 @@ void dryIceIntakeShutdown();
 
 // space.cpp
 void spaceShutdown();
+// The Hell sky burning (fire_sky.cpp): fireSkyTick each frame; fireSkyImage
+// the texture standing in for the sky, null while the painted one shows.
+void fireSkyTick();
+const GpuTextureRef *fireSkyImage();
+void fireSkyShutdown();
 constexpr float marsShine=0.75f;  // Phobos: Mars-shine, of the sky light it stands in for
 
 // exposure.cpp

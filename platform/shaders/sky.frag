@@ -90,7 +90,10 @@ void main() {
     float rise=ray.z/max(length(ray.xy),1e-4);
     float v=0.70-rise*0.68;
     vec2 uv=vec2(-angle/6.2831853*size.x*4.0,clamp(v,0.001,0.999)*size.y);
-    bool filtered=c.effects.x>0.0;
+    // The PS1 fire sky (c.phobos.w, scene3d/fire_sky.cpp) is drawn crisp, texel
+    // for texel as the PlayStation drew it: no filtering, softening or haze.
+    bool fire=c.phobos.w>0.0;
+    bool filtered=c.effects.x>0.0&&!fire;
     if(c.phobos.x>0.0) {
         vec3 sunWay=vec3(cos(c.fx2.z)*cos(c.outdoor.w),sin(c.fx2.z)*cos(c.outdoor.w),sin(c.outdoor.w));
         bool behindMars;
@@ -114,7 +117,7 @@ void main() {
         vec2 o=vec2(i&1,i>>1)-0.5;
         soft+=indexed(image,palette,vec2(uv.x+o.x,clamp(uv.y+o.y,0.5,size.y-0.5)),filtered,true).rgb;
     }
-    color.rgb=mix(color.rgb,soft/4.0,0.6);
+    if(!fire) color.rgb=mix(color.rgb,soft/4.0,0.6);
     // The sky's own low-row color, the tint of air at the horizon.
     vec3 low=vec3(0);
     for(int i=0;i<8;++i)
@@ -124,12 +127,12 @@ void main() {
     // pulled toward a grey-tinted mix of that low color. Restrained overall.
     float air=0.12+0.33*(1.0-smoothstep(0.0,0.6,rise));
     float luma=dot(color.rgb,vec3(0.299,0.587,0.114));
-    color.rgb=mix(color.rgb,mix(vec3(luma),low,0.6),air);
+    if(!fire) color.rgb=mix(color.rgb,mix(vec3(luma),low,0.6),air);
     // High-altitude haze in the sky's own upper-row color hides the clamped,
     // stretched top rows. It begins just above the frame top when looking
     // level and is opaque a little past the painted edge.
     float high=smoothstep(0.12,-0.08,v);
-    if(high>0.0) {
+    if(high>0.0&&!fire) {
         vec3 cap=vec3(0);
         for(int i=0;i<8;++i)
             for(int j=0;j<2;++j)
@@ -141,7 +144,7 @@ void main() {
     color.rgb=mix(color.rgb,low,smoothstep(0.88,1.02,v));
     // Haze toward the horizon in the sky's own low-row color, so distant
     // silhouettes meet a soft band rather than a hard painted edge.
-    if(c.materials.z>0.0&&c.effects.z==0.0)
+    if(c.materials.z>0.0&&c.effects.z==0.0&&!fire)
         color.rgb=mix(color.rgb,low,0.55*(1.0-smoothstep(-0.05,0.3,ray.z)));
     // The sun at the baked yaw and the height the sky paints it (c.outdoor.w;
     // bakeSun in scene3d/bake_sun.cpp, 40 degrees for DOOM): a small

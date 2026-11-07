@@ -73,7 +73,13 @@ In **F4 → Graphics**:
   pressed, which opens the menu over it. It is drawn from the WAD's own
   logo (M_DOOM) and palette; off, the title is the WAD's TITLEPIC.
 
-Code: `linuxdoom-1.10/f_firetitle.c`, `pictureBox` in `platform/gpu3d/frame.cpp`, `ps1Dither` in
+- **Retro look → PS1 fire sky** (on by default) turns the Hell maps' sky (SKY3:
+  DOOM's third episode, DOOM II's MAP21 on) into a wall of fire, as on the
+  PlayStation: its own fire algorithm (P_FireSky, as reconstructed in
+  PSXDOOM-RE) at about its 15 updates a second, in its 37 fire colours, drawn
+  crisp with none of the painted sky's softening or haze.
+
+Code: `linuxdoom-1.10/f_firetitle.c`, `platform/scene3d/fire_sky.cpp`, `pictureBox` in `platform/gpu3d/frame.cpp`, `ps1Dither` in
 `platform/shaders/present.frag`.
 
 ## Relit Face

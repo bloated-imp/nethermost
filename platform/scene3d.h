@@ -85,6 +85,7 @@ struct Settings {
     int upscale=0; // The render stretched to the window: 0 smooth (bilinear), 1 crisp (nearest), 2 sharp bilinear.
     int aspect=0; // The picture's shape: 0 the window's, 1 a 4:3 box in its middle, black bars beside it (frame.cpp pictureBox).
     int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
+    int fireSky=1; // The Hell maps' sky (SKY3) burns as on the PlayStation (scene3d/fire_sky.cpp).
     int ps1Dither=0; // The final colours cut to the PlayStation's 15 bits through its 4x4 ordered dither (present.frag).
     int invertLook=0; // Mouse look: moving the mouse forward tilts the view down.
     int classicAim=0; // With mouse look: bullets autoaim at a monster in front as in DOOM, following the view only with none.
@@ -326,6 +327,9 @@ void buildCloudTexture();
 Image &wallImage(int index);
 // The sky to draw: on Phobos its copy with the painted air cleared (space.cpp).
 const GpuTextureRef &skyImage();
+// The palette skyImage's indices read: the PS1 fire sky's own colours while
+// it burns (scene3d/fire_sky.cpp), else null for the game's palette.
+const GpuTextureRef *skyPalette();
 Image &lumpImage(int lump,bool flat);
 // Builds the camera, layout and (when the world is visible) all geometry and lights.
 FrameView prepareFrame(int width,int height);

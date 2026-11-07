@@ -8,6 +8,7 @@ namespace doom3d {
 static GpuTextureRef spaceTexture;
 
 const GpuTextureRef &skyImage() {
+    if(const GpuTextureRef *fire=fireSkyImage())return *fire;   // fire_sky.cpp
     if(!Game_Phobos())return wallImage(skytexture).texture;
     if(!spaceTexture) {
         const byte empty[2]={0,0};

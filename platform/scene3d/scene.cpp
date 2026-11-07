@@ -200,7 +200,7 @@ void sceneShutdown() {
     lightBlockers.clear();flashes={};oldThings.clear();oldHeights.clear();
     batches.clear();shadowBatches.clear();decalBatches.clear();mirrorBatches.clear();particleVertices.clear();glowVertices.clear();
     mistVertices.clear();skyVertices.clear();shaftVertices.clear();heatVertices.clear();
-    imagesShutdown();mapShutdown();causticsShutdown();clearSurfaceLights();lightsShutdown();glassLightShutdown();exposureShutdown();spaceShutdown();
+    imagesShutdown();mapShutdown();causticsShutdown();clearSurfaceLights();lightsShutdown();glassLightShutdown();exposureShutdown();spaceShutdown();fireSkyShutdown();
     bakeAtlasShutdown();sunShutdown();lightBakeShutdown();clearStaticGrid();indirectShutdown();
     impactsShutdown();bloodShutdown();puddlesShutdown();splashesShutdown();bodyMotionShutdown();glassShutdown();shotLightsShutdown();
     weatherShutdown();wearShutdown();draftsShutdown();blownInShutdown();disturbancesShutdown();groundDentsShutdown();fogShutdown();waterIceShutdown();
@@ -578,6 +578,8 @@ FrameView prepareFrame(int w,int h) {
         static int tintedSky=-1;
         static std::array<float,3> horizon;
         if(skytexture!=tintedSky){skyTint=skyColor();horizon=skyHorizon();tintedSky=skytexture;}
+        fireSkyTick();
+        camera.phobos[3]=fireSkyImage()?1:0;   // the PS1 fire sky, drawn crisp (sky.frag)
         for(int c=0;c<3;++c)camera.fx[1+c]=skyTint[c];
         // Outdoor haze in the sky's horizon color (Game_Sun), with the fog.
         for(int c=0;c<3;++c)camera.haze[c]=horizon[c]*camera.mood[0]*camera.mood[1+c];

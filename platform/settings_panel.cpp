@@ -297,6 +297,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                     check("ps1_title","PS1 title screen",&s.ps1Title,
                         "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
                         "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture."),
+                    check("ps1_fire_sky","PS1 fire sky",&s.fireSky,
+                        "On the Hell maps the sky is a wall of fire, flames licking up from the horizon into the black, as on "
+                        "the PlayStation. In DOOM's third episode and DOOM II's last third (wherever the map uses the Hell sky, "
+                        "SKY3), drawn in the WAD's own palette. Off: the painted sky."),
                     check("ps1_dither","PS1 dithering",&s.ps1Dither,
                         "The colours cut to the PlayStation's 15 bits through its fine 4x4 dither pattern, which breaks smooth "
                         "shading and fog into a grain. The pattern sits on the render's pixels, so it is coarser at lower "

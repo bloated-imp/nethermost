@@ -331,7 +331,7 @@ if(DOOM_BUILD_SDL)
         platform/scene3d/stats_overlay.cpp
         platform/scene3d/shadows.cpp
         platform/scene3d/shot_lights.cpp
-        platform/scene3d/space.cpp
+        platform/scene3d/space.cpp platform/scene3d/fire_sky.cpp
         platform/scene3d/relaid_walls.cpp
         platform/scene3d/sprite_normals.cpp
         platform/scene3d/surface_lights.cpp
