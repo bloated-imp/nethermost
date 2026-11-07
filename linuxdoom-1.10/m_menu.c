@@ -32,6 +32,8 @@ rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <time.h>
 
 
 #include "doomdef.h"
@@ -297,6 +299,7 @@ enum
     ep2,
     ep3,
     ep4,
+    ep5,
     ep_end
 } episodes_e;
 
@@ -309,7 +312,8 @@ menuitem_t EpisodeMenu[]=
     {1,"M_EPI1", M_Episode,'k'},
     {1,"M_EPI2", M_Episode,'t'},
     {1,"M_EPI3", M_Episode,'i'},
-    {1,"M_EPI4", M_Episode,'t'}
+    {1,"M_EPI4", M_Episode,'t'},
+    {1,"M_EPI5", M_Episode,'s'}	// SIGIL, when it is loaded (M_Init)
 };
 
 menu_t  EpiDef =
@@ -727,7 +731,37 @@ void M_SaveSelect(int choice)
     strcpy(saveOldString,savegamestrings[choice]);
     if (!strcmp(savegamestrings[choice],EMPTYSTRING))
 	savegamestrings[choice][0] = 0;
+    // DERP: picked with a gamepad, an empty slot gets the map and the time
+    // of day, so A saves without typing.
+    if (!savegamestrings[choice][0] && I_GamepadUsedLast ())
+    {
+	time_t	now = time (NULL);
+	struct tm* local = localtime (&now);
+	char	map[8];
+	if (gamemode == commercial)
+	    snprintf (map, sizeof(map), "MAP%02d", gamemap);
+	else
+	    snprintf (map, sizeof(map), "E%dM%d", gameepisode, gamemap);
+	if (local)
+	    snprintf (savegamestrings[choice], SAVESTRINGSIZE, "%s %02d:%02d", map, local->tm_hour, local->tm_min);
+	else
+	    snprintf (savegamestrings[choice], SAVESTRINGSIZE, "%s", map);
+    }
     saveCharIndex = strlen(savegamestrings[choice]);
+}
+
+//
+// DERP: what a gamepad's buttons do now (game_profile.h's GAME_PAD_*).
+//
+int M_PadMode (void)
+{
+    if (saveStringEnter)
+	return 3;
+    if (messageToPrint && messageNeedsInput)
+	return 2;
+    if (menuactive || messageToPrint)
+	return 1;
+    return 0;
 }
 
 //
@@ -1659,6 +1693,10 @@ boolean M_Responder (event_t* ev)
     
     if (ch == -1)
 	return false;
+    // DERP: mouse and pad buttons as keys (bind_keys.h) are the game's; the
+    // pad works the menus with the keys they know (i_sdl_gamepad.c).
+    if (ch >= KEY_MOUSE1)
+	return false;
 
     
     // Save Game string input
@@ -2216,9 +2254,12 @@ void M_Init (void)
       case registered:
 	// We need to remove the fourth episode.
 	EpiDef.numitems--;
-	break;
+	// fall through: and the fifth.
       case retail:
-	// We are fine.
+	// The fifth, SIGIL, only when it is loaded.
+	if (gamemode != retail || W_CheckNumForName("E5M1") < 0
+	    || W_CheckNumForName("M_EPI5") < 0)
+	    EpiDef.numitems--;
       default:
 	break;
     }

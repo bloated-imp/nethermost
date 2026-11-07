@@ -1,4 +1,4 @@
-/* Movement tuning (F4 → Controls → Movement): multipliers for the player's
+/* Movement tuning (F4 → Game → Play → Tuning): multipliers for the player's
    walk and run speed, keyboard turning, momentum and view bob, 1 for
    unchanged (movewalk ... movebob, doomstat.h). Set from the settings; off in
    demos and netgames (P_MoveTuning), like the tuned movement, so recordings

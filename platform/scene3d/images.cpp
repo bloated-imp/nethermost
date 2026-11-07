@@ -340,12 +340,22 @@ static bool livingMonsterLump(int lump) {
 // TEKWALL4 room went red from its few red LEDs. Stained glass glows over
 // most of its area but is a window, not a lamp: it lights the room softly,
 // most of its color reaching the floor as projected light (glass_light.cpp).
+// Diffuser ceiling panels (CEIL3_4) light at half weight.
 static Image &speckledPanel(Image &image,const char *name,bool flat) {
     int kind=Game_GlowKind(name,flat);
     if(image.emissionCoverage>0&&image.emissionCoverage<0.006f&&kind==DOOM_EMISSIVE_PANEL)
         image.emissionWeight=image.emissionCoverage*8.0f;
     if(kind==DOOM_EMISSIVE_GLASS) {image.emissionWeight*=0.2f;image.leaded=!image.emission.empty();}
+    if(kind==DOOM_EMISSIVE_DIFFUSE)image.emissionWeight*=0.5f;   // diffuser panels: a dim, broad light
     return image;
+}
+// Wall textures with oversized bricks (rebrickedWall), loaded again when
+// Settings::rebrick changes.
+static std::unordered_set<int> rebrickable;
+static int rebrickLoaded=-1;
+void rebrickSwitched() {
+    if(rebrickLoaded>=0&&rebrickLoaded!=settings.rebrick)for(int index:rebrickable)images.erase(index);
+    rebrickLoaded=settings.rebrick;
 }
 /* Texture keys: wall index >=0, WAD lump = -1-lump. */
 Image &wallImage(int index) {
@@ -361,6 +371,11 @@ Image &wallImage(int index) {
     // Masked walls (bars, fences) show what lies behind instead of tiles;
     // animated ones would change tiles every frame.
     int next;bool animated=P_PicAnimationNext(true,index,&next)>0;
+    // Oversized painted bricks laid anew at half the size (relaid_walls.cpp).
+    if(!glowing&&glass.empty()&&!animated) {
+        std::vector<byte> smaller=rebrickedWall(w,h,pixels,2);
+        if(!smaller.empty()) {rebrickable.insert(index);if(settings.rebrick)pixels.swap(smaller);}
+    }
     Image &image=speckledPanel(images.emplace(index,upload(w,h,pixels.data(),0,0,glowing?mask.data():nullptr,nullptr,
         glass.empty()?nullptr:glass.data(),true)).first->second,name,false);
     if(image.leaded)return withLeadedRelief(withGlassFrame(image,frame));
@@ -586,5 +601,5 @@ std::array<float,3> texelColor(Image &image) {
     }
     return averageColor(image);
 }
-void imagesShutdown() {images.clear();cloudTexture=nullptr;}
+void imagesShutdown() {images.clear();rebrickable.clear();cloudTexture=nullptr;}
 } // namespace doom3d

@@ -281,7 +281,8 @@ if(DOOM_BUILD_SDL)
     # Without -rate, each effect uses the same native rate as its game bank.
     add_executable(doom-sfx-render tests/sfx_render.c platform/audio/impact_synth.c platform/audio/spark_synth.c
         platform/audio/glass_synth.c platform/audio/fracture_synth.c platform/audio/step_synth.c platform/audio/ambient_synth.c platform/audio/machine_synth.c
-        platform/audio/liquid_synth.c platform/audio/fire_synth.c platform/audio/flyby_synth.c platform/audio/gore_synth.c platform/audio/hidden_synth.c platform/audio/resample.c platform/audio/reverb.c)
+        platform/audio/liquid_synth.c platform/audio/fire_synth.c platform/audio/flyby_synth.c platform/audio/gore_synth.c platform/audio/hidden_synth.c platform/audio/resample.c platform/audio/reverb.c
+        platform/audio/wind_voice.c platform/audio/wind_speed.c platform/audio/wind_still.c platform/audio/wind_breeze.c platform/audio/wind_gale.c)
     target_include_directories(doom-sfx-render PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/platform")
     if(NOT WIN32)
         target_link_libraries(doom-sfx-render PRIVATE m)
@@ -331,6 +332,7 @@ if(DOOM_BUILD_SDL)
         platform/scene3d/shadows.cpp
         platform/scene3d/shot_lights.cpp
         platform/scene3d/space.cpp
+        platform/scene3d/relaid_walls.cpp
         platform/scene3d/sprite_normals.cpp
         platform/scene3d/surface_lights.cpp
         platform/scene3d/thing_light.cpp
@@ -409,13 +411,15 @@ if(DOOM_BUILD_SDL)
     # and the made-up sounds: impacts and the ambience read from the map's textures. The room map
     # (rooms.c) is for the renderer and the sound alike, so every program builds it here.
     set(DOOM_AUDIO_SOURCES platform/rooms.c platform/audio/map.c platform/audio/occlusion.c platform/audio/resample.c platform/audio/reverb.c platform/audio/room.c platform/audio/beyond.c platform/audio/relief.c platform/audio/flyby.c
-        platform/audio/treble.c platform/audio/made_bank.c platform/audio/ambience.c platform/audio/ambience_map.c platform/audio/ambience_voices.c platform/audio/acoustic_graph.c platform/audio/steps.c platform/audio/frozen.c
+        platform/audio/treble.c platform/audio/hrtf.c platform/audio/made_bank.c platform/audio/ambience.c platform/audio/ambience_map.c platform/audio/ambience_voices.c platform/audio/wind_voice.c platform/audio/wind_speed.c platform/audio/wind_still.c platform/audio/wind_breeze.c platform/audio/wind_gale.c platform/audio/acoustic_graph.c platform/audio/steps.c platform/audio/frozen.c
         platform/audio/impact_synth.c platform/audio/spark_synth.c platform/audio/glass_synth.c platform/audio/fracture_synth.c platform/audio/step_synth.c
         platform/audio/ambient_synth.c platform/audio/machine_synth.c platform/audio/computer_synth.c platform/audio/liquid_synth.c platform/audio/fire_synth.c
         platform/audio/flyby_synth.c platform/audio/gore_synth.c platform/audio/hidden_synth.c platform/audio/hidden.c platform/audio/vacuum.c
         platform/audio/ringing.c platform/audio/head_knock.c platform/audio/falling_air.c platform/audio/library_steps.c
         platform/audio/library_acoustics.c)
-    add_executable(doom MACOSX_BUNDLE platform/sdl_main.c platform/i_sdl_video.c
+    # Gamepads, joysticks, their rumble and the bindings of every key, mouse button and pad button.
+    set(DOOM_INPUT_SOURCES platform/i_sdl_gamepad.c platform/gamepad_curves.c platform/gamepad_rumble.c platform/bindings.c)
+    add_executable(doom MACOSX_BUNDLE platform/sdl_main.c platform/i_sdl_video.c ${DOOM_INPUT_SOURCES}
         platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
         platform/i_portable_system.c platform/wad_probe.c)
     target_link_libraries(doom PRIVATE doom_game SDL3::SDL3 doom_music)
@@ -509,7 +513,7 @@ if(DOOM_BUILD_SDL)
         endif()
     endif()
     # The Heretic program: nethermost-heretic -iwad heretic.wad
-    add_executable(nethermost-heretic platform/sdl_main.c platform/i_sdl_video.c
+    add_executable(nethermost-heretic platform/sdl_main.c platform/i_sdl_video.c ${DOOM_INPUT_SOURCES}
         platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
         platform/i_portable_system.c platform/wad_probe.c)
     target_link_libraries(nethermost-heretic PRIVATE heretic_game SDL3::SDL3 doom_music)
@@ -534,7 +538,7 @@ if(DOOM_BUILD_SDL)
         add_dependencies(nethermost-heretic-bundle doom nethermost-heretic)
     endif()
     if(BUILD_TESTING)
-        add_executable(doom-movement-audio-tests tests/movement_audio.c
+        add_executable(doom-movement-audio-tests tests/movement_audio.c platform/audio/hrtf.c
             platform/audio/resample.c platform/audio/treble.c platform/audio/step_synth.c platform/audio/frozen.c)
         target_include_directories(doom-movement-audio-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10"
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio")
@@ -543,7 +547,7 @@ if(DOOM_BUILD_SDL)
             target_link_libraries(doom-movement-audio-tests PRIVATE m)
         endif()
         add_test(NAME movement-audio-routing COMMAND doom-movement-audio-tests)
-        # Movement tuning (F4 Controls, Movement): its momentum and scaling math (p_movetune.h).
+        # Movement tuning (F4 Game, Play, Tuning): its momentum and scaling math (p_movetune.h).
         add_executable(doom-move-tuning-tests tests/move_tuning.c)
         target_include_directories(doom-move-tuning-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
         add_test(NAME move-tuning COMMAND doom-move-tuning-tests)
@@ -556,8 +560,15 @@ if(DOOM_BUILD_SDL)
         add_executable(doom-user-sounds-tests tests/user_sounds.c)
         target_link_libraries(doom-user-sounds-tests PRIVATE doom_music)
         add_test(NAME user-sounds COMMAND doom-user-sounds-tests)
+        add_executable(doom-hrtf-tests tests/hrtf_audio.c platform/audio/hrtf.c)
+        target_include_directories(doom-hrtf-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio")
+        target_link_libraries(doom-hrtf-tests PRIVATE doom_options)
+        if(NOT WIN32)
+            target_link_libraries(doom-hrtf-tests PRIVATE m)
+        endif()
+        add_test(NAME hrtf-directions COMMAND doom-hrtf-tests)
         function(doom_add_smoke target game renderer)
-            add_executable(${target} ${ARGN} platform/i_sdl_video.c
+            add_executable(${target} ${ARGN} platform/i_sdl_video.c ${DOOM_INPUT_SOURCES}
                 platform/i_sdl_sound.c platform/i_music.c platform/user_music.c platform/user_sounds.c platform/audio/mixer_music.c platform/i_singleplayer.c ${DOOM_AUDIO_SOURCES}
                 platform/i_portable_system.c)
             target_compile_definitions(${target} PRIVATE DOOM_TEST_DRIVER)
@@ -691,7 +702,7 @@ if(BUILD_TESTING)
         platform/audio/glass_synth.c platform/audio/fracture_synth.c platform/audio/step_synth.c
         platform/audio/flyby_synth.c platform/audio/gore_synth.c platform/audio/ambient_synth.c platform/audio/machine_synth.c
         platform/audio/liquid_synth.c platform/audio/fire_synth.c platform/audio/computer_synth.c platform/audio/hidden_synth.c
-        platform/audio/ambience_voices.c platform/audio/resample.c)
+        platform/audio/ambience_voices.c platform/audio/wind_voice.c platform/audio/wind_speed.c platform/audio/wind_still.c platform/audio/wind_breeze.c platform/audio/wind_gale.c platform/audio/resample.c)
     add_executable(doom-computer-presence-tests tests/computer_presence.c platform/audio/ambience.c)
     target_include_directories(doom-computer-presence-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
     target_link_libraries(doom-computer-presence-tests PRIVATE doom_options)
@@ -703,6 +714,13 @@ if(BUILD_TESTING)
     add_test(NAME computer-room-presence COMMAND doom-computer-presence-tests)
     add_executable(doom-wad-probe-tests tests/wad_probe.c platform/wad_probe.c)
     add_test(NAME wad-loader-probe COMMAND doom-wad-probe-tests)
+    add_executable(doom-controls-tests tests/controls.c platform/bindings.c platform/gamepad_curves.c)
+    target_include_directories(doom-controls-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
+    target_link_libraries(doom-controls-tests PRIVATE doom_options)
+    if(NOT WIN32)
+        target_link_libraries(doom-controls-tests PRIVATE m)
+    endif()
+    add_test(NAME controls-sticks-bindings COMMAND doom-controls-tests)
     add_executable(doom-derp-info-tests tests/derp_info.c)
     target_link_libraries(doom-derp-info-tests PRIVATE doom_headless_platform)
     add_test(NAME derpinfo-reader COMMAND doom-derp-info-tests)

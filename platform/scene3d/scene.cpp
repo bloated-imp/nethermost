@@ -6,6 +6,7 @@
 extern "C" {
 #include "../audio/sound_options.h"
 }
+#include "../i_gamepad.h"
 #include "../settings_panel.h"
 
 namespace doom3d {
@@ -123,6 +124,7 @@ static void acceleratedView(player_t *player) {
 }
 void applySettings() {
     fitGame(settings);
+    rebrickSwitched();
     R_AcceleratedView=settings.accelerated?acceleratedView:nullptr;
     R_BeforeTic=settings.accelerated?beforeTic:nullptr;
     R_MuzzleFlash=settings.accelerated?muzzleFlash:nullptr;
@@ -145,12 +147,17 @@ void applySettings() {
     Game_SetWeather(settings.weather);
     Game_SetPhobosRules(settings.phobosPlayer,settings.phobosEnemies,settings.phobosAir,settings.phobosRecoil);
     quickconfirm=settings.quickConfirm!=0;
+    gamepad_options pad={settings.padLookX,settings.padLookY,settings.padDeadzone,settings.gyroSpeed,
+                         settings.padBoost,settings.padSouthpaw,settings.gyro,
+                         settings.rumble,settings.triggerRumble,settings.worldRumble};
+    I_GamepadOptions(&pad);
     if(!settings.accelerated) clearFlashPulses();
     r_uncapped=settings.accelerated;
     if(!settings.look) pitch=0;
     R_SetViewSize(10,0);
     applyWindowSize();
     I_SetSoundOptions(settings.roomAcoustics,settings.reverbAmount,settings.muffleWalls,settings.muffleDistance,settings.naturalFalloff);
+    I_SetSoundOutput(settings.soundOutput);
     I_SetSfxPlayback(settings.sfxResampling,settings.sfxTreble);
     I_SetUserSounds(settings.userSounds);
     I_SetMadeSounds(settings.madeImpacts,settings.glassSound,settings.ambience,settings.ambienceAmount,settings.footsteps);
@@ -392,6 +399,10 @@ FrameView prepareFrame(int w,int h) {
     float referenceAspect=(4.0f/3)*(scaledviewwidth/320.0f)/(viewheight/200.0f);
     camera.projection[1]=referenceAspect/tan(settings.fov*doomPi/360);
     camera.projection[0]=camera.projection[1]/(worldW/std::max(1.0f,worldH));
+    // Doom drew 320x200 for a 4:3 screen, so its pixels stood 1.2 times taller than wide and the
+    // art was made for that. The HUD gets this from its 4:3 box; the world gets it here, in height
+    // alone, so the view keeps its width and a texel covers the same pixel the status bar does.
+    camera.projection[1]*=1.2f;
     camera.fx2[0]=worldH/200;
     float fraction=1;
     if(worldPending) {
@@ -710,7 +721,7 @@ void updateTitle(int width,int height,const char *renderer) {
     if(now-titleTime>1000000000) {
         fps=frameCount*1e9/(now-titleTime);frameCount=0;titleTime=now;
         char rate[32]="";if(settings.fps==1)snprintf(rate,sizeof(rate)," · %.0f fps",fps);
-        char title[256];snprintf(title,sizeof(title),"Nethermost · %s · %s · %dx%d%s%s · F4: graphics · F7: screenshot · Esc: menu",
+        char title[256];snprintf(title,sizeof(title),"Nethermost · %s · %s · %dx%d%s%s · F4: settings · F7: screenshot · Esc: menu",
             Game_Title(),settings.accelerated?renderer:"Classic",width,height,rate,
             Game_HasEffect(GAME_EFFECT_FLASHLIGHT)?" · F: flashlight":"");
         SDL_SetWindowTitle(gameWindow,title);
@@ -742,6 +753,12 @@ void I_Render3DLook(float delta) {
     }
 }
 void I_Render3DToggleFlashlight(void) {if(settings.accelerated&&Game_HasEffect(GAME_EFFECT_FLASHLIGHT))flashlightOn=!flashlightOn;}
+void I_Render3DCenterView(void) {
+    if(demoplayback)return;
+    float gameLook;
+    if(Game_LookPitch(&gameLook))Game_Look(-gameLook);
+    else pitch=0;
+}
 void I_Render3DScreenshot(void) {screenshotPending=true;}
 void I_Render3DCycleStats(void) {if(settings.accelerated){settings.fps=(settings.fps+1)%4;saveSettings();}}
 const I_Render3DFrameProfile *I_Render3DLastFrame(void) {return &profile.frame;}

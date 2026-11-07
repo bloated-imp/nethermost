@@ -52,6 +52,7 @@ static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const F
     SDL_GPUTextureSamplerBinding samplers[]={{colorTexture,upscaled},{bloomTexture,linearClamp},{hudTexture,linearClamp},{paletteLUT,nearestClamp}};
     SDL_BindGPUFragmentSamplers(pass,0,samplers,4);
     if(bars) {SDL_GPUViewport box={(float)boxX,(float)boxY,(float)boxW,(float)boxH,0,1};SDL_SetGPUViewport(pass,&box);}
+    SDL_BindGPUVertexSamplers(pass,0,&samplers[1],1);   // the bloom, for how much of it the view keeps
     SDL_DrawGPUPrimitives(pass,3,1,0,0);
     // The overlays and the settings panel use the whole screen, bars and all.
     if(bars) {SDL_GPUViewport whole={0,0,(float)targetWidth,(float)targetHeight,0,1};SDL_SetGPUViewport(pass,&whole);}
@@ -390,6 +391,7 @@ static void drawBloom(SDL_GPUCommandBuffer *render,const FrameView &view,const U
         SDL_DrawGPUPrimitives(blurPass,3,1,0,0);
         SDL_EndGPURenderPass(blurPass);
     }
+    SDL_GenerateMipmapsForGPUTexture(render,bloomTexture);
 }
 // Profiling: submits the scene's own command buffer and times it.
 static void submitProfiled(SDL_GPUCommandBuffer *render,uint64_t frameStart) {

@@ -37,7 +37,7 @@ mixer's rate and follow the Music Volume slider. Code:
 
 ## Movement Tuning
 
-**F4 → Controls → Movement → Tuning** has seven sliders for finding a slower,
+**F4 → Game → Play → Tuning** has seven sliders for finding a slower,
 heavier feel by playing. Each is a multiplier; 1.00 leaves the Movement choice
 above as it is.
 

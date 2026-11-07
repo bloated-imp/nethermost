@@ -94,6 +94,13 @@ struct Settings {
     float moveBobRate=1,moveTurnRamp=1; // The bob's pace (and the flashlight's sway); the turn keys' slow start, eased into full speed.
     int movement=0; // 0 DERP's tighter tuning, 1 DOOM's own (acceleration, friction, faster diagonals), 2 tuned plus held running diagonals easing into DOOM's strafe-running.
     int quickConfirm=1; // Quicksave and quickload ask before overwriting or loading.
+    // Gamepads (i_sdl_gamepad.c): look speed across and up and down, the sticks' dead zone,
+    // the turn boost at full tilt, the sticks swapped (southpaw), gyro aim (0 off, 1 on,
+    // 2 while the gyro button is held) and its speed.
+    float padLookX=1, padLookY=1, padDeadzone=0.15f, gyroSpeed=1;
+    int padBoost=1, padSouthpaw=0, gyro=0;
+    // Rumble (gamepad_rumble.c): 0 off, 1 low, 2 full; the trigger motors; rumble from what is heard around.
+    int rumble=2, triggerRumble=1, worldRumble=1;
     float msaa=0; // Geometry edge anti-aliasing: 0 off, then 2x, 4x and 8x MSAA (capped by gpuMaxSamples).
     // Walls and floors: 0 crisp pixels, 1 smooth (bilinear), 2 sharp bilinear
     // (flat texels, edges blended over sharpSoftness texels plus a pixel).
@@ -108,6 +115,7 @@ struct Settings {
     int variedHighlights=1; // Gloss highlights tighten on smooth artwork and spread on busy artwork, per palette ramp.
     int unevenTiles=1; // Tiles painted into floors each lie a little crooked, with a lit or shadowed lip where they meet.
     int unevenWalls=1; // The same for the tiles, plates and bricks painted into walls and ceilings.
+    int rebrick=1; // Oversized painted bricks (DOOM's 64 x 32) laid anew at half the size from their own artwork (scene3d/relaid_walls.cpp).
     int softLight=1; // Light seam blending and edge contact shading.
     int reflections=1; // Mirrored scene on water.
     int retroReflections=1; // Eighth resolution, palette colors, stepped wobble.
@@ -123,7 +131,7 @@ struct Settings {
     int caustics=1; // Rippling light from liquids on nearby walls.
     // Experimental effects, each separately switchable.
     // F4's combined choices; fitGame sets the switches below them from these.
-    int deaths=2; // Deaths: 0 the game's frames, 1 varied, 2 procedural falls, 3 ragdolls, 4 ragdolls Hollywood (flying, punch, spins).
+    int deaths=4; // Deaths: 0 the game's frames, 1 varied, 2 procedural falls, 3 ragdolls, 4 ragdolls Hollywood (flying, punch, spins).
     int hitReactions=1; // Hit reactions: death reactions and hit flinches.
     int mode=1; // Gameplay (F4 Game, Mode): 0 normal (the derived look), 1 authored episodes, 2 physically accurate Phobos; sets authored and phobos.
     int bloodLevel=2; // Blood: 0 off, 1 splats and pools, 2 full (spray, shine).
@@ -197,6 +205,7 @@ struct Settings {
     int weaponLighting=1; // The weapon's painted sheen and light come out at load; lights around the player relight it.
     // Sound, though graphics.cfg keeps it: the mixer is told in applySettings.
     int musicDevice=0; // What plays the music: 0 SoundFont, 1 OPL FM, 2 the Mac's own synthesizer.
+    int soundOutput=0; // 0 speakers, 1 headphones through a KEMAR head, 2 through a KU100.
     int sfxResampling=0; // Effects between their samples: 0 held (original sizzle), 1 cubic, 2 windowed sinc.
     int userSounds=1; // Sound files the player supplies (user_sounds.c) play in place of the WAD's.
     float sfxTreble=1; // Made-up treble above the samples' own band, past Original playback (0-2).
@@ -216,7 +225,7 @@ struct Settings {
     int gridSpriteLight=0; // Things take static light and their shadow light from a grid baked at level load.
     int unoccludedSurfaceLights=0; // Glowing textures' dynamic light skips wall tests; its gloss can show through walls.
     int fewerSurfaceLights=0; // Only the 8 nearest glowing-texture lights stay dynamic, not 24.
-    int skipHiddenGeometry=0; // Walls and flats the BSP walk finds hidden from the eye are left out each frame.
+    int skipHiddenGeometry=1; // Walls and flats the BSP walk finds hidden from the eye are left out each frame.
 };
 // glassFrame: on textures with monitor screens, where each glass pixel sits
 // on its screen (see screen_glass.h); null otherwise. relief: on walls and
