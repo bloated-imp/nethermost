@@ -44,6 +44,16 @@
 
 #define HU_MSGTIMEOUT	(4*TICRATE)
 
+// F4 Nethermost, PS1 message position: just above the status bar, as the
+// PlayStation drew it (y 193 on its 256x240 screen, the bar at y 200, so 7
+// rows above the bar at y 168), its letters in line with
+// the bar's AMMO label, as there: the label's bright letters start at column
+// 11 on a status bar pack's bar and 8 on DOOM's, the font's a column in.
+#define HU_PS1MSGX_PACK	10
+#define HU_PS1MSGX	7
+#define HU_PS1MSGY	161
+extern boolean hu_ps1messages;
+
 //
 // HEADS UP TEXT
 //

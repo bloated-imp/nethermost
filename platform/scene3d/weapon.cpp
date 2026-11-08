@@ -35,7 +35,10 @@ static Image &weaponImage(int lump,bool keepPaint=false) {
 // over about a tenth of a second so single rays changing what they hit don't
 // flicker. The shader lights the weapon with it as an ambient cube, and its
 // glossy and grazing edges mirror it, so a bright wall ahead creeps over the
-// weapon's outline even when no light reaches the player.
+// weapon's outline even when no light reaches the player. The w of the first
+// three vectors holds the player's own muzzle flash coming back off what the
+// rays hit (rgb): the flash lights those surfaces, near ones the most, and
+// they light the weapon, whose visible side faces away from the muzzle.
 float weaponProbe[24]={};
 static std::array<float,18> weaponProbeTarget={};
 static uint64_t weaponProbeTime=0;static unsigned weaponProbeSerial=~0u;
@@ -49,7 +52,11 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
     const BakeSector &own=bakeMap.sectors[sector-sectors];
     eye[2]=std::clamp(eye[2],own.floor+1,std::max(own.floor+1,own.ceiling-1));
     bool glow=settings.emissive;
+    std::array<float,3> albedoSeen={},bounce={},flashColor={};
+    float flashRadius=0,flashStrength=0;
+    bool flash=settings.flashBounce>0&&ownMuzzleFlash(flashRadius,flashStrength,flashColor);
     auto lit=[&](const std::array<float,3> &albedo,const Image *image,int at,const uint8_t *baked,float out[3]) {
+        albedoSeen=albedo;
         float level=lighting(&sectors[at]),shown[3]={};
         if(baked) {for(int c=0;c<3;++c)shown[c]=baked[c]/255.0f*2;fillHeadroom(shown,level);}
         float cover=glow&&image&&image->emissionWeight>0?image->emissionCoverage:0;
@@ -100,7 +107,15 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
                 // Open sky above, or nothing within reach: the sky's light, or the room's.
                 float level=lighting(sector);
                 for(int c=0;c<3;++c)out[c]=direction[2]>0.3f&&skyLevel>0?skyTint[c]*skyLevel:0.5f*level;
-            } else radiance(hit,out);
+            } else {
+                radiance(hit,out);
+                if(flash) {
+                    // Out to the surface and back again.
+                    float dx=hit.x-eye[0],dy=hit.y-eye[1],dz=hit.z-eye[2];
+                    float reach=std::max(0.0f,1-std::sqrt(dx*dx+dy*dy+dz*dz)/flashRadius);
+                    for(int c=0;c<3;++c)bounce[c]+=albedoSeen[c]*flashColor[c]*flashStrength*reach*reach/30;
+                }
+            }
             for(int c=0;c<3;++c)target[axis*3+c]+=out[c]/5;
         }
     }
@@ -110,6 +125,10 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
         weaponProbeTarget[i]+=(target[i]-weaponProbeTarget[i])*blend;
         weaponProbe[(i/3)*4+i%3]=weaponProbeTarget[i];
     }
+    // Not eased: it lasts as long as the flash, a few tics. The gain keeps
+    // the dark artwork in step with the bright walls it answers.
+    const float bounceGain=3;
+    for(int c=0;c<3;++c)weaponProbe[c*4+3]=bounce[c]*bounceGain*settings.flashBounce;
 }
 // The weapon's place on the screen at the last tic (beforeTic), so its bob,
 // raise and lower blend between tics like the world. The flash follows the

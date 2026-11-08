@@ -40,7 +40,7 @@ extern int maxSamples;extern bool forceSingleSample;
 extern SDL_GPUSampler *linearRepeat,*linearClamp,*nearestClamp;
 // Fixed textures: the HUD and settings panel images, the palette and its
 // 32³ lookup, 1x1 stand-ins for missing scene maps, a covered solid texel.
-extern SDL_GPUTexture *settingsTexture,*hudTexture,*paletteTexture,*paletteLUT,*dummySeam,*dummyContact,*dummyBake,*dummyRelief,*solidTexel;
+extern SDL_GPUTexture *settingsTexture,*hudTexture,*paletteTexture,*flashFreePalette,*flashWeaponPalette,*paletteLUT,*dummySeam,*dummyContact,*dummyBake,*dummyRelief,*solidTexel;
 SDL_GPUTexture *createTexture(SDL_GPUTextureFormat format,int w,int h,SDL_GPUTextureUsageFlags usage,
                               SDL_GPUSampleCount samples=SDL_GPU_SAMPLECOUNT_1,SDL_GPUTextureType type=SDL_GPU_TEXTURETYPE_2D,int depth=1);
 void flushUploads();
@@ -63,7 +63,7 @@ void applySampleCount();
 
 // draw.cpp
 void uploadFrame(SDL_GPUCommandBuffer *command,const std::vector<const std::vector<Vertex>*> &transient,
-                 const std::vector<std::array<float,4>> &sectors,const unsigned *palette,const std::vector<unsigned> &hud,
+                 const std::vector<std::array<float,4>> &sectors,const unsigned *palette,const unsigned *steady,const unsigned *weaponPal,const std::vector<unsigned> &hud,
                  const std::vector<unsigned> &panel);
 void releaseFrameUploads();
 void drawVertices(SDL_GPURenderPass *pass,const std::vector<Vertex> &vertices);
@@ -98,6 +98,8 @@ std::vector<Vertex> panelQuad(Uint32 drawableWidth,Uint32 drawableHeight,float o
 // loading.cpp
 void showLoading(const char *title,const char *stage,float fraction);
 void releaseLoading();
+extern std::vector<unsigned> loadingBackdrop;   // the last screen that was not a level, for the PS1 loading plaque
+extern bool loadingBackdropValid;
 
 inline SDL_GPUTexture *gpu(const GpuTextureRef &texture) {return texture?texture->texture:nullptr;}
 template<class T> inline void release(T *&object,void (*destroy)(SDL_GPUDevice*,T*)) {if(object&&device)destroy(device,object);object=nullptr;}

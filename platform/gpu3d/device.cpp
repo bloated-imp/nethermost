@@ -9,7 +9,7 @@ static SDL_GPUCommandBuffer *uploadCommand; // Texture uploads, submitted before
 SDL_GPUTextureFormat depthFormat,swapchainFormat;
 int maxSamples=1;bool forceSingleSample=false;
 SDL_GPUSampler *linearRepeat,*linearClamp,*nearestClamp;
-SDL_GPUTexture *settingsTexture,*hudTexture,*paletteTexture,*paletteLUT,*dummySeam,*dummyContact,*dummyBake,*dummyRelief,*solidTexel;
+SDL_GPUTexture *settingsTexture,*hudTexture,*paletteTexture,*flashFreePalette,*flashWeaponPalette,*paletteLUT,*dummySeam,*dummyContact,*dummyBake,*dummyRelief,*solidTexel;
 static std::array<unsigned,256> paletteKey;
 SDL_GPUTexture *createTexture(SDL_GPUTextureFormat format,int w,int h,SDL_GPUTextureUsageFlags usage,
                               SDL_GPUSampleCount samples,SDL_GPUTextureType type,int depth) {
@@ -217,12 +217,14 @@ int I_Render3DInit(SDL_Window *window) {
     hudTexture=createTexture(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,SCREENWIDTH,SCREENHEIGHT,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     settingsTexture=createTexture(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,DOOM_SETTINGS_WIDTH,DOOM_SETTINGS_HEIGHT,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     paletteTexture=createTexture(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,256,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    flashFreePalette=createTexture(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,256,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    flashWeaponPalette=createTexture(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,256,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     dummySeam=createTexture(SDL_GPU_TEXTUREFORMAT_R16G16B16A16_UNORM,1,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     dummyContact=createTexture(SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,1,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     dummyBake=createTexture(SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,1,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     dummyRelief=createTexture(SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,1,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
     solidTexel=createTexture(SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,1,1,SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    if(!settingsTexture||!hudTexture||!paletteTexture||!dummySeam||!dummyContact||!dummyBake||!dummyRelief||!solidTexel) {I_Render3DShutdown();return 0;}
+    if(!settingsTexture||!hudTexture||!paletteTexture||!flashFreePalette||!flashWeaponPalette||!dummySeam||!dummyContact||!dummyBake||!dummyRelief||!solidTexel) {I_Render3DShutdown();return 0;}
     std::array<byte,8> zero={};const byte covered[4]={0,255,0,255}; // Index 0, full coverage, no emission.
     const byte level[4]={128,128,0,255}; // No slope, no grain.
     upload(dummySeam,1,1,1,zero.data(),8,1);upload(dummyContact,1,1,1,zero.data(),4,1);upload(dummyBake,1,1,1,zero.data(),4,1);upload(dummyRelief,1,1,1,level,4,1);
@@ -241,7 +243,7 @@ void I_Render3DShutdown(void) {
     sceneShutdown();
     flushUploads();
     releaseTargets();releaseReflection();width=height=0;
-    for(SDL_GPUTexture **t:{&settingsTexture,&hudTexture,&paletteTexture,&paletteLUT,&dummySeam,&dummyContact,&dummyBake,&dummyRelief,&solidTexel})release(*t);
+    for(SDL_GPUTexture **t:{&settingsTexture,&hudTexture,&paletteTexture,&flashFreePalette,&flashWeaponPalette,&paletteLUT,&dummySeam,&dummyContact,&dummyBake,&dummyRelief,&solidTexel})release(*t);
     releasePipelines();
     for(SDL_GPUSampler **s:{&linearRepeat,&linearClamp,&nearestClamp})release(*s,SDL_ReleaseGPUSampler);
     releaseFrameUploads();releaseLoading();

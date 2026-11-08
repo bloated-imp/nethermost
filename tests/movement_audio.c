@@ -31,6 +31,11 @@ static int reverb_ids[2];
 int Game_HasEffect(game_effect effect) { return effect == GAME_EFFECT_NATURAL_FALLOFF; }
 int Game_ThinkerIsMobj(const thinker_t *thinker) { return thinker == &monster.thinker; }
 int Game_WeaponHeft(int weapon) { (void)weapon; return 2; }
+const char *Impact_Name(int kind) { (void)kind; return "none"; }
+const char *Ambient_Name(int kind) { (void)kind; return "none"; }
+int Ambient_Stepped(int kind) { (void)kind; return 0; }
+void AmbienceVoices_SupplyLoop(int kind, const float *pcm, int length, int rate) { (void)kind; (void)pcm; (void)length; (void)rate; }
+void AmbienceVoices_UseSupplied(int enabled) { (void)enabled; }
 int Game_PsxReverb(int *preset, int *depth) { (void)preset; (void)depth; return 0; }
 int Game_UnderSky(float x, float y) { (void)x; (void)y; return 0; }
 float Game_SoundCarry(int id) { (void)id; return 1; }

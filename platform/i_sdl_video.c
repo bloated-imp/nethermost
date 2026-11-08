@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "doomdef.h"
+#include "w_wad.h"
+#include "z_zone.h"
 #include "doomstat.h"
 #include "d_main.h"
 #include "d_event.h"
@@ -22,6 +24,11 @@ static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 static uint32_t palette[256], pixels[SCREENWIDTH * SCREENHEIGHT];
+/* The game's first palette with the same gamma: palette without the pickup,
+   damage and radiation flashes (F4 Nethermost, PS1 screen flashes). */
+static uint32_t steadypalette[256];
+/* Which flash the current palette is (I_FLASH_*, i_render3d.h). */
+static int paletteflash;
 static int buttons, keys[SDL_SCANCODE_COUNT];
 static boolean captured;
 #ifdef DOOM_RENDER3D
@@ -489,6 +496,22 @@ void I_SetPalette(byte *data)
                    | (uint32_t)gammatable[usegamma][data[3*i]] << 16
                    | (uint32_t)gammatable[usegamma][data[3*i+1]] << 8
                    | gammatable[usegamma][data[3*i+2]];
+    /* After data is read: caching this could purge another palette lump. */
+    const byte *steady = W_CacheLumpName((char *)"PLAYPAL", PU_CACHE);
+    for (int i = 0; i < 256; ++i)
+        steadypalette[i] = UINT32_C(0xff000000)
+                         | (uint32_t)gammatable[usegamma][steady[3*i]] << 16
+                         | (uint32_t)gammatable[usegamma][steady[3*i+1]] << 8
+                         | gammatable[usegamma][steady[3*i+2]];
+    /* PLAYPAL's palettes: 0 plain, 1-8 damage, 9-12 pickups, 13 radiation. */
+#ifdef DOOM_RENDER3D
+    paletteflash = I_FLASH_NONE;
+    if (data > steady && data < steady + 14 * 768)
+    {
+        int index = (int)((data - steady) / 768);
+        paletteflash = index <= 8 ? I_FLASH_DAMAGE : index <= 12 ? I_FLASH_PICKUP : I_FLASH_RADIATION;
+    }
+#endif
 }
 void I_FinishUpdate(void)
 {
@@ -499,7 +522,7 @@ void I_FinishUpdate(void)
     for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; ++i)
         pixels[i] = palette[screens[0][i]];
 #ifdef DOOM_RENDER3D
-    if (accel) { I_Render3DPresent(pixels, palette); return; }
+    if (accel) { I_Render3DPresent(pixels, palette, steadypalette, paletteflash); return; }
 #endif
     SDL_UpdateTexture(texture, NULL, pixels, SCREENWIDTH * sizeof(uint32_t));
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

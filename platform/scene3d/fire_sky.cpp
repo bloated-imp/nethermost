@@ -1,4 +1,4 @@
-/* The PlayStation's fire sky (settings.fireSky, F4 Retro look): on DOOM's
+/* The PlayStation's fire sky (settings.fireSky, F4 Nethermost): on DOOM's
    Hell maps, those whose sky is SKY3 (the third episode, DOOM II's last
    third), the sky is a wall of fire, as PlayStation DOOM's P_FireSky made
    it (p_spec.c in the PSXDOOM-RE reconstruction). A field of heat, 0 to

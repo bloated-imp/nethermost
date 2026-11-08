@@ -1,4 +1,4 @@
-/* The PlayStation's reverb (F4 Sound, PS1 reverb): the SPU's own reverb unit,
+/* The PlayStation's reverb (F4 Nethermost, PS1 reverb): the SPU's own reverb unit,
  * as the psx-spx reference documents it, with its preset register sets. It
  * runs at the SPU's 22050 Hz on its own echo buffer, in place of the
  * measured rooms (reverb.h), with each map's preset and depth from the

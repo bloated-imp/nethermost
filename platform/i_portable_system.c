@@ -155,7 +155,7 @@ const char *I_ProgramFile(const char *name)
     return NULL;
 #endif
 }
-// A status bar pack (F4 Retro look, Status bar pack): the first .wad by name
+// A status bar pack (F4 Nethermost, Status bar pack): the first .wad by name
 // in a hud folder in the save folder (the working directory, beside
 // doom.cfg), else in one beside the game. Only its status bar graphics are
 // used (W_AddFile's '^'); NULL when there is none.

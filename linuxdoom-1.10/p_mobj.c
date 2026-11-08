@@ -633,7 +633,7 @@ void P_RemoveMobj (mobj_t* mobj)
     P_UnsetThingPosition (mobj);
     
     // stop any playing sound
-    S_StopSound (mobj);
+    S_UnlinkSound (mobj);
     
     // free block
     P_RemoveThinker ((thinker_t*)mobj);
@@ -1063,8 +1063,8 @@ P_SpawnPlayerMissile
     z = source->z + 4*8*FRACUNIT;
     if (look)
     {
-	// centered on the eye, so it flies down the crosshair
-	z = source->player->viewz - height/2;
+	// From the original's height, the launcher's muzzle, and along the view:
+	// it lands a few units under the crosshair.
 	if (z + height > source->ceilingz)
 	    z = source->ceilingz - height;
 	if (z < source->floorz)

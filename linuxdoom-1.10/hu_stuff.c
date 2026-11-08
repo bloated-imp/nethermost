@@ -484,12 +484,27 @@ void HU_Start(void)
 
 }
 
+boolean		hu_ps1messages = true;
+
 void HU_Drawer(void)
 {
+    int		ps1x = W_StatusBarFileInUse () ? HU_PS1MSGX_PACK : HU_PS1MSGX;
+    int		x = hu_ps1messages ? ps1x : HU_MSGX;
+    int		y = hu_ps1messages ? HU_PS1MSGY : HU_MSGY;
+    int		i;
+
+    for (i = 0; i < w_message.h; i++)
+    {
+	w_message.l[i].x = x;
+	w_message.l[i].y = y - i*(SHORT(hu_font[0]->height)+1);
+    }
+    w_title.x = hu_ps1messages ? ps1x : HU_TITLEX;
+    w_title.y = hu_ps1messages ? HU_PS1MSGY : HU_TITLEY;
 
     HUlib_drawSText(&w_message);
     HUlib_drawIText(&w_chat);
-    if (automapactive)
+    // On the PlayStation they share the spot: a message hides the level's name.
+    if (automapactive && !(hu_ps1messages && message_on))
 	HUlib_drawTextLine(&w_title, false);
 
 }

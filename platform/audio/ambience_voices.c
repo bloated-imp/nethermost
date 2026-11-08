@@ -4,6 +4,7 @@
  * takes and where in them they start, not by pitch, which would beat. Gains
  * glide over a twentieth of a second. */
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 #include "ambience_voices.h"
 #include "made_bank.h"
@@ -32,6 +33,10 @@ typedef struct {
 static voice_t voices[AMBIENT_KINDS][AMBIENCE_LAYERS];
 static voice_t computer_activity[AMBIENCE_LAYERS], computer_body;
 static int alternative_computers;
+/* A kind's loop the player supplies (AmbienceVoices_SupplyLoop), and whether
+   those are in use. */
+static made_sample_t supplied_loops[AMBIENT_KINDS];
+static int use_supplied = 1;
 static float computer_blend;
 
 static void target(voice_t *v, const ambience_voice_t *t, float scale)
@@ -61,6 +66,60 @@ void AmbienceVoices_SetComputerBody(const ambience_voice_t *body)
 }
 
 void AmbienceVoices_AlternativeComputer(int enabled) { alternative_computers = enabled != 0; }
+
+void AmbienceVoices_UseSupplied(int enabled) { use_supplied = enabled != 0; }
+
+/* The bus runs at the loops' rate, so a recording is averaged down to it;
+   its ends are crossfaded so the loop has no seam; and it is brought to the
+   loudness of the loop it replaces, so the balance holds. */
+void AmbienceVoices_SupplyLoop(int kind, const float *pcm, int length, int rate)
+{
+    if (kind < 0 || kind >= AMBIENT_KINDS || !pcm || length < 2 || rate <= 0) return;
+    double step = rate / (double)MADE_RATE;
+    int frames = (int)(length / step);
+    float *out = malloc((size_t)frames * sizeof *out);
+    if (!out) return;
+    for (int i = 0; i < frames; ++i)
+    {
+        int from = (int)(i * step), to = (int)((i + 1) * step);
+        if (to > length) to = length;
+        if (to <= from) to = from + 1;
+        float sum = 0;
+        for (int j = from; j < to; ++j) sum += pcm[j];
+        out[i] = sum / (to - from);
+    }
+    int fade = MADE_RATE / 10;
+    if (fade * 2 < frames)
+    {
+        for (int i = 0; i < fade; ++i)
+        {
+            float in = sqrtf((float)i / fade), away = sqrtf(1 - (float)i / fade);
+            out[i] = out[i] * in + out[frames - fade + i] * away;
+        }
+        frames -= fade;
+    }
+    float bank = 0, own = 0, peak = 0;
+    int counted = 0;
+    for (int l = 0; l < AMBIENCE_LAYERS; ++l)
+    {
+        const made_sample_t *loop = MadeBank_Loop(kind, l);
+        for (int i = 0; loop && loop->data && i < loop->length; ++i)
+        {
+            float value = (loop->data[i] - 128) / 128.0f;
+            bank += value * value;
+            ++counted;
+        }
+    }
+    for (int i = 0; i < frames; ++i) { own += out[i] * out[i]; peak = fmaxf(peak, fabsf(out[i])); }
+    if (counted && own > 0)
+    {
+        float gain = sqrtf((bank / counted) / (own / frames));
+        if (kind == AMBIENT_COMPUTER) gain *= 1.3f;   /* a steady sound under the bleeps' average sat too low */
+        if (peak * gain > 0.98f) gain = 0.98f / peak;
+        for (int i = 0; i < frames; ++i) out[i] *= gain;
+    }
+    supplied_loops[kind] = (made_sample_t){ NULL, frames, MADE_RATE, out };
+}
 
 static void silence(voice_t *v)
 {
@@ -114,10 +173,10 @@ static void voice_run(voice_t *v, const made_sample_t *loop, int at, int n, floa
     v->cutoff *= powf(v->to_cutoff / v->cutoff, muffle_glide);
     int open = v->cutoff >= 0.45f * MADE_RATE;
     float keep = expf(-2 * PI_F * fminf(v->cutoff, 0.45f * MADE_RATE) / MADE_RATE);
-    int position = (int)v->position;
+    int position = (int)v->position % loop->length;
     for (int i = 0; i < n; ++i)
     {
-        float x = (i + 1) / (float)n, value = (loop->data[position] - 128) / 128.0f;
+        float x = (i + 1) / (float)n, value = loop->pcm ? loop->pcm[position] : (loop->data[position] - 128) / 128.0f;
         v->low[0] = value + (v->low[0] - value) * keep;
         v->low[1] = v->low[0] + (v->low[1] - v->low[0]) * keep;
         if (!open) value = v->low[1];
@@ -155,10 +214,13 @@ static void bus_run(int n)
                as the strength passes; a jump in strength fades it out first). */
             int stepped = Ambient_Stepped(k), swapping = stepped && v->step != v->to_step;
             if (swapping && v->left + v->right + v->send < 1e-3f) { v->step = v->to_step; v->started = 0; swapping = 0; }
-            const made_sample_t *loop = stepped ? MadeBank_StepLoop(k, v->step) : MadeBank_Loop(k, l);
+            const made_sample_t *loop = stepped ? MadeBank_StepLoop(k, v->step)
+                                     : use_supplied && supplied_loops[k].pcm ? &supplied_loops[k] : MadeBank_Loop(k, l);
             if (!loop) continue;
-            /* Each starts somewhere else in its loop; muffling starts where it should be. */
-            start(v, loop, k * 7919 + l * 3571);
+            /* Each starts somewhere else in its loop; muffling starts where it
+               should be. Layers of one recording start far apart, or two
+               nearby machines playing it almost together would comb. */
+            start(v, loop, loop->pcm ? l * (loop->length / AMBIENCE_LAYERS) : k * 7919 + l * 3571);
             float to[3] = { v->to_left, v->to_right, v->to_send };
             if (swapping) v->to_left = v->to_right = v->to_send = 0;
             voice_run(v, loop, filled, n, k == AMBIENT_COMPUTER ? 1 - computer_blend : 1,

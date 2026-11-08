@@ -511,6 +511,29 @@ S_StartSound
 
 
 
+// A thing is removed while its sound plays (a rocket's explosion outlasts its
+// frames): the sound finishes where the thing was, its channel left with a
+// copy of it, instead of being cut off as the game once did.
+#define MOST_LINGERING	64
+static mobj_t	lingering[MOST_LINGERING];
+
+void S_UnlinkSound(void *origin)
+{
+    int cnum;
+
+    for (cnum=0 ; cnum<numChannels ; cnum++)
+	if (channels[cnum].sfxinfo && channels[cnum].origin == origin)
+	{
+	    if (cnum < MOST_LINGERING)
+	    {
+		lingering[cnum] = *(mobj_t *) origin;
+		channels[cnum].origin = &lingering[cnum];
+	    }
+	    else
+		S_StopChannel(cnum);
+	}
+}
+
 void S_StopSound(void *origin)
 {
 

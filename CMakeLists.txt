@@ -547,7 +547,7 @@ if(DOOM_BUILD_SDL)
             target_link_libraries(doom-movement-audio-tests PRIVATE m)
         endif()
         add_test(NAME movement-audio-routing COMMAND doom-movement-audio-tests)
-        # Movement tuning (F4 Game, Play, Tuning): its momentum and scaling math (p_movetune.h).
+        # Movement tuning (F4 Nethermost, Movement): its momentum and scaling math (p_movetune.h).
         add_executable(doom-move-tuning-tests tests/move_tuning.c)
         target_include_directories(doom-move-tuning-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/linuxdoom-1.10")
         add_test(NAME move-tuning COMMAND doom-move-tuning-tests)
@@ -567,7 +567,7 @@ if(DOOM_BUILD_SDL)
             target_link_libraries(doom-hrtf-tests PRIVATE m)
         endif()
         add_test(NAME hrtf-directions COMMAND doom-hrtf-tests)
-        # The PlayStation SPU's reverb (F4 PS1 reverb): each preset rings, stays bounded and decays.
+        # The PlayStation SPU's reverb (F4 Nethermost, PS1 reverb): each preset rings, stays bounded and decays.
         add_executable(doom-psx-reverb-tests tests/psx_reverb.c platform/audio/psx_reverb.c)
         target_include_directories(doom-psx-reverb-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio")
         if(NOT WIN32)

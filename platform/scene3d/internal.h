@@ -41,8 +41,10 @@ extern float tourpitch;
 extern boolean freeaim, classicaim, classicmovement, strafeboost;
 extern double movewalk, moverun, moveturn, movemomentum, movebob, movebobrate, moveturnramp;   // movement tuning (p_movetune.h)
 boolean P_MoveTuning(void);
+extern boolean hu_ps1messages;   // messages just above the status bar (hu_stuff.h)
 extern boolean ps1title;   // the PlayStation-style title (f_firetitle.h)
 const void *ST_Face(int *x,int *y);   // the status bar's face (st_stuff.h)
+void ST_UseMutedRedText(boolean on);   // the game's red text in the pack's reds, or DOOM's own (st_stuff.h)
 void ST_UseStatusBarPack(boolean on);   // a hud folder's status bar WAD or the game's own (st_stuff.h)
 extern boolean quickconfirm; // The game's menu (F4 "Confirm quicksave and quickload").
 extern fixed_t aimslope;
@@ -405,6 +407,7 @@ extern std::array<bool,maxLights> fogOnly;
 extern std::array<uint8_t,maxLights> lightKinds;
 extern uint8_t lightKind;
 void muzzleFlash(mobj_t *source,int weapon,int projectile);
+bool ownMuzzleFlash(float &radius,float &strength,std::array<float,3> &color);
 void sparkFlash(float x,float y,float z,float radius,float strength,const std::array<float,3> &color);
 void appendLight(float x,float y,float z,float radius,float strength,const std::array<float,3> &color,const mobj_t *source,float directionality,bool occluded=true,float baked=0,
                  const std::array<float,4> &spot={});

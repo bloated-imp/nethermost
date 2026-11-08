@@ -52,6 +52,8 @@ void ST_Drawer (boolean fullscreen, boolean refresh);
 const void* ST_Face (int* x, int* y);
 // A status bar pack's graphics (a WAD in a hud folder) or the game's own.
 void ST_UseStatusBarPack (boolean on);
+// The game's red text in a status bar pack's muted reds, or DOOM's own.
+void ST_UseMutedRedText (boolean on);
 
 // Called when the console player is spawned on each level.
 void ST_Start (void);

@@ -48,6 +48,19 @@ void muzzleFlash(mobj_t *source,int weapon,int projectile) {
     if(flashPulses.size()==8) flashPulses.erase(flashPulses.begin());
     flashPulses.push_back(pulse);
 }
+// The displayed player's own muzzle flash now, for the light it throws back
+// off the walls onto the weapon (weapon.cpp); false with none showing.
+bool ownMuzzleFlash(float &radius,float &strength,std::array<float,3> &color) {
+    const mobj_t *me=players[displayplayer].mo;
+    if(!me)return false;
+    for(const auto &p:flashPulses)if(p.source==me) {
+        float now=p.strength*doom_flash_fade(leveltime-p.tic,renderFraction);
+        if(now<=0)return false;
+        radius=p.radius;strength=now;color=p.color;
+        return true;
+    }
+    return false;
+}
 // A short flash where a shot sparks off machinery or breaks a lamp
 // (shot_lights.cpp); a new one replaces the last.
 void sparkFlash(float x,float y,float z,float radius,float strength,const std::array<float,3> &color) {

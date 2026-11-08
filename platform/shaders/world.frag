@@ -378,7 +378,7 @@ void main() {
     if(sprite&&(vMode&(MODE_SCREEN|MODE_RELIT|MODE_FACE))==(MODE_SCREEN|MODE_RELIT|MODE_FACE)) {
         float level=dot(illumination,vec3(0.299,0.587,0.114));
         illumination=min(mix(vec3(level),illumination,0.45),vec3(1.25));
-        illumination=round(illumination*16.0)/16.0;
+        illumination=max(round(illumination*16.0)/16.0,vec3(1.0/16.0));
     }
     color.rgb=color.rgb*illumination;
     // Light also spills toward its own color by how saturated the texel is,

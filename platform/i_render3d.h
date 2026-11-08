@@ -9,7 +9,10 @@ struct SDL_Window;
 int I_Render3DInit(struct SDL_Window *window);
 void I_Render3DShutdown(void);
 void I_Render3DStartFrame(void);
-void I_Render3DPresent(const unsigned *pixels, const unsigned *palette);
+/* palette: the current one, flashes and all; steady: the same without them;
+   flash: which flash palette is showing. */
+enum { I_FLASH_NONE, I_FLASH_DAMAGE, I_FLASH_PICKUP, I_FLASH_RADIATION };
+void I_Render3DPresent(const unsigned *pixels, const unsigned *palette, const unsigned *steady, int flash);
 void I_Render3DLook(float delta);
 void I_Render3DSettings(void);
 /* The in-game F4 panel (settings_menu.cpp), opened by I_Render3DSettings.

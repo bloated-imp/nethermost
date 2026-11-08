@@ -90,6 +90,15 @@ struct Settings {
     int aspect=0; // The picture's shape: 0 the window's, 1 a 4:3 box in its middle, black bars beside it (frame.cpp pictureBox).
     int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
     float lightLevel=1; // The sectors' own light levels scaled by this (world.frag, c.levels.x): below 1 the world is darker; lamps, flashes and the flashlight keep theirs.
+    float faceFlash=1; // How strongly the player's own muzzle flash lights the relit face (0-2).
+    float flashBounce=1; // How much of the player's own muzzle flash comes back off nearby walls onto the relit weapon (0-3).
+    int ps1PickupFlash=1; // The pickup flash tints only the 3D view, not the HUD or the sky, as on the PlayStation.
+    float pickupFlashStrength=1; // How strong that flash is on the 3D view (0-3, 1 the palette's own).
+    float pickupFlashWeapon=1; // How strong it is on the weapon (0-12; the same number as the screen's brightens them together).
+    int ps1DamageFlash=0; // The same for the damage and radiation flashes.
+    int ps1Loading=1; // Between levels the LOADING plaque (hud/loading.png) over the last screen, as on the PlayStation (gpu3d/loading.cpp).
+    int ps1MessagePosition=1; // Pickup and other messages just above the status bar, as on the PlayStation (hu_stuff.h).
+    int mutedRedText=1; // The game's red text (menus, messages, intermission) in a status bar pack's muted reds (w_wad.c).
     int statusBarPack=1; // A status bar WAD in a hud folder (its status bar graphics only) in place of the game's own (st_stuff.c).
     int ps1Motion=0; // Things, doors and lifts drawn in steps about 15 a second, as the PlayStation's tics moved them (scene.cpp).
     int fireSky=1; // The Hell maps' sky (SKY3) burns as on the PlayStation (scene3d/fire_sky.cpp).
@@ -354,7 +363,7 @@ void paceSubmitted(double start);
 using LoadingShow=void(*)(const char *title,const char *stage,float fraction);
 bool loadPending();
 void runLoading(int width,int height,LoadingShow show);
-std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette);
+std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette,bool repaint);
 std::vector<std::array<float,4>> sectorInfo();
 SurfaceBinding surfaceBinding(int key);
 std::vector<SpriteDraw> weaponDraws(const Uniforms &camera);

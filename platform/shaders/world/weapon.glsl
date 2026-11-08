@@ -51,7 +51,12 @@ Weapon weaponSurface(inout float light) {
         weaponView=c.forward.xyz;
     }
     float edge=1.0-saturate(dot(weaponNormal,weaponView));
+    float lit=light;
     light=round(light*(0.95+0.25*weaponNormal.z)*(1.0-0.4*edge*edge)*16.0)/16.0;
+    // The face keeps at least the darkest step: in the darkest rooms the
+    // texels turned furthest down and away (the jaw's) would otherwise round
+    // to nothing, pure black beside faintly lit neighbours.
+    if((vMode&MODE_FACE)!=0u&&lit>0.0) light=max(light,1.0/16.0);
     return Weapon(weaponNormal,weaponAt,weaponView,weaponGloss);
 }
 // Lights around the player on the relit weapon (w from weaponSurface),
@@ -136,7 +141,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         // middle, just under and behind the face, so it would graze only
         // the edges; it comes from the gun out in front, a little low.
         if((vMode&MODE_FACE)!=0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
-            toLight=normalize(c.forward.xyz-0.3*c.up.xyz);
+            {toLight=normalize(c.forward.xyz-0.3*c.up.xyz);amount*=c.levels.y;}   // F4 Nethermost, Muzzle flash on face
         // On the weapon, the player's own flash shines from out past the
         // muzzle, ahead of the gun, not from inside it at the player's
         // middle: it rims and creeps over the gun from in front rather than
@@ -163,4 +168,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     // Static-light redistribution may subtract its own baked tint,
     // but must not consume the independent light from the room.
     pulse=max(pulse,vec3(0))+environment*surroundings;
+    // The player's own muzzle flash back off the walls around (weaponProbe's
+    // w): soft over the side we see, a little more at its turning edges.
+    if(!face) pulse+=vec3(weaponProbe[0].w,weaponProbe[1].w,weaponProbe[2].w)*(0.6+0.4*edge);
 }

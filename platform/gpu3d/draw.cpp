@@ -18,7 +18,7 @@ static void reserve(Arena &arena,Uint32 bytes,SDL_GPUBufferUsageFlags usage) {
     if(!arena.buffer)I_Error((char*)"Could not allocate GPU buffer: %s",SDL_GetError());
 }
 void uploadFrame(SDL_GPUCommandBuffer *command,const std::vector<const std::vector<Vertex>*> &transient,
-                 const std::vector<std::array<float,4>> &sectors,const unsigned *palette,const std::vector<unsigned> &hud,
+                 const std::vector<std::array<float,4>> &sectors,const unsigned *palette,const unsigned *steady,const unsigned *weaponPal,const std::vector<unsigned> &hud,
                  const std::vector<unsigned> &panel) {
     vertexOffsets.clear();Uint32 bytes=0;
     auto place=[&](const std::vector<Vertex> &vertices) {
@@ -36,7 +36,7 @@ void uploadFrame(SDL_GPUCommandBuffer *command,const std::vector<const std::vect
     reserve(blockerArena,blockerBytes,SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ);
     reserve(sectorArena,sectorBytes,SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ);
     Uint32 imageOffset=vertexBytes+blockerBytes+sectorBytes,hudBytes=(Uint32)(hud.size()*4);
-    Uint32 panelBytes=(Uint32)(panel.size()*4),total=imageOffset+1024+hudBytes+panelBytes;
+    Uint32 panelBytes=(Uint32)(panel.size()*4),steadyOffset=imageOffset+1024+hudBytes+panelBytes,weaponOffset=steadyOffset+1024,total=weaponOffset+1024;
     if(!frameTransfer||frameTransferCapacity<total) {
         if(frameTransfer)SDL_ReleaseGPUTransferBuffer(device,frameTransfer);
         frameTransferCapacity=std::max<Uint32>(262144,total+total/2);
@@ -50,6 +50,8 @@ void uploadFrame(SDL_GPUCommandBuffer *command,const std::vector<const std::vect
     memcpy(mapped+vertexBytes,lightWords.data(),blockerBytes);
     memcpy(mapped+vertexBytes+blockerBytes,sectors.data(),sectorBytes);
     memcpy(mapped+imageOffset,palette,1024);
+    memcpy(mapped+steadyOffset,steady,1024);
+    memcpy(mapped+weaponOffset,weaponPal,1024);
     memcpy(mapped+imageOffset+1024,hud.data(),hudBytes);
     if(panelBytes)memcpy(mapped+imageOffset+1024+hudBytes,panel.data(),panelBytes);
     SDL_UnmapGPUTransferBuffer(device,frameTransfer);
@@ -68,6 +70,8 @@ void uploadFrame(SDL_GPUCommandBuffer *command,const std::vector<const std::vect
         SDL_UploadToGPUTexture(copy,&source,&target,true);
     };
     image(imageOffset,paletteTexture,256,1);
+    image(steadyOffset,flashFreePalette,256,1);
+    image(weaponOffset,flashWeaponPalette,256,1);
     image(imageOffset+1024,hudTexture,SCREENWIDTH,SCREENHEIGHT);
     if(panelBytes)image(imageOffset+1024+hudBytes,settingsTexture,DOOM_SETTINGS_WIDTH,DOOM_SETTINGS_HEIGHT);
     SDL_EndGPUCopyPass(copy);
@@ -162,7 +166,7 @@ void drawWorld(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,SDL_GPUGrap
     SDL_BindGPUGraphicsPipeline(pass,opaque);bindWorld(pass,reflection);
     for(const auto &batch:batches) if(opaqueBatch(batch)) {bindSurface(command,pass,batch.first,3);drawVertices(pass,batch.second);}
     const GpuTextureRef *firePalette=doom3d::skyPalette();
-    SDL_GPUTextureSamplerBinding skyImage[]={{gpu(doom3d::skyImage()),linearRepeat},{firePalette?gpu(*firePalette):paletteTexture,nearestClamp}};
+    SDL_GPUTextureSamplerBinding skyImage[]={{gpu(doom3d::skyImage()),linearRepeat},{firePalette?gpu(*firePalette):flashFreePalette,nearestClamp}};
     if(!skyVertices.empty()) {
         SDL_BindGPUGraphicsPipeline(pass,skySurface);SDL_BindGPUFragmentSamplers(pass,0,skyImage,2);
         drawVertices(pass,skyVertices);
@@ -199,7 +203,7 @@ void drawOverlays(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
         SDL_PushGPUFragmentUniformData(command,3,blend,sizeof(blend));
         for(const auto &draw:weapons) {
             if(draw.overHud)continue;
-            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),linearRepeat},{paletteTexture,nearestClamp},{gpu(draw.image->texture),linearRepeat}};
+            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),linearRepeat},{flashWeaponPalette,nearestClamp},{gpu(draw.image->texture),linearRepeat}};
             SDL_BindGPUFragmentSamplers(pass,0,image,3);drawVertices(pass,draw.vertices);
         }
     }
@@ -233,7 +237,7 @@ void drawHudLayer(SDL_GPUCommandBuffer *command,SDL_GPURenderPass *pass,const Fr
         SDL_PushGPUFragmentUniformData(command,3,blend,sizeof(blend));
         for(const auto &draw:weapons) {
             if(!draw.overHud)continue;
-            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),nearestClamp},{paletteTexture,nearestClamp},{gpu(draw.image->texture),nearestClamp}};
+            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),nearestClamp},{flashFreePalette,nearestClamp},{gpu(draw.image->texture),nearestClamp}};
             SDL_BindGPUFragmentSamplers(pass,0,image,3);drawVertices(pass,draw.vertices);
         }
     }

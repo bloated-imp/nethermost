@@ -11,6 +11,10 @@ void AmbienceVoices_Set(const ambience_voice_t voices[AMBIENT_KINDS][AMBIENCE_LA
 void AmbienceVoices_SetComputerBody(const ambience_voice_t *body);
 /* Crossfades the computer family; other ambience and its positions are untouched. */
 void AmbienceVoices_AlternativeComputer(int enabled);
+/* A recording in place of a kind's loop (mono, at rate), made ready once before
+   the mixer runs, and whether such recordings are in use. */
+void AmbienceVoices_SupplyLoop(int kind, const float *pcm, int length, int rate);
+void AmbienceVoices_UseSupplied(int enabled);
 /* Adds frames of every sounding voice to interleaved stereo and to the
    reverb send, read between samples by resampling (audio/resample.h), all
    scaled by duck (1 none). gain is the mixer's effect gain. */

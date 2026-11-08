@@ -286,7 +286,7 @@ static void drawScene(SDL_GPUCommandBuffer *render,SDL_GPURenderPass *pass,const
     if(!glassVertices.empty()) {
         SDL_BindGPUGraphicsPipeline(pass,glassPipeline);
         const GpuTextureRef *firePalette=skyPalette();   // the glass reads its palette only for the sky
-        SDL_GPUTextureSamplerBinding images[]={{gpu(skyImage()),linearRepeat},{firePalette?gpu(*firePalette):paletteTexture,nearestClamp},
+        SDL_GPUTextureSamplerBinding images[]={{gpu(skyImage()),linearRepeat},{firePalette?gpu(*firePalette):flashFreePalette,nearestClamp},
                                               {glassReflected?glassMirror.color:paletteTexture,nearestClamp},
                                               {probeAtlas?probeAtlas:paletteTexture,nearestClamp}};
         SDL_BindGPUFragmentSamplers(pass,0,images,4);bindLightBlockers(pass);
@@ -382,7 +382,7 @@ static void drawBloom(SDL_GPUCommandBuffer *render,const FrameView &view,const U
     if(!weapons.empty()) {
         setView(glowPass,view.uiX*sx,view.uiY*sy,view.uiWidth*sx,view.uiHeight*sy,&area);
         for(const auto &draw:weapons) {
-            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),nearestClamp},{paletteTexture,nearestClamp},{gpu(draw.image->texture),nearestClamp}};
+            SDL_GPUTextureSamplerBinding image[]={{gpu(draw.image->texture),nearestClamp},{flashWeaponPalette,nearestClamp},{gpu(draw.image->texture),nearestClamp}};
             SDL_BindGPUFragmentSamplers(glowPass,0,image,3);drawVertices(glowPass,draw.vertices);
         }
     }
@@ -431,7 +431,7 @@ static void renderSize(int drawableWidth,int drawableHeight,int &w,int &h) {
         w=std::max(1,drawableWidth*percent/100);h=std::max(1,drawableHeight*percent/100);
     }
 }
-void I_Render3DPresent(const unsigned *pixels,const unsigned *palette) {
+void I_Render3DPresent(const unsigned *pixels,const unsigned *palette,const unsigned *steady,int flash) {
     applySampleCount();
     // A new level's build and bakes run first, with the loading screen up.
     if(loadPending()) {
@@ -465,7 +465,35 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette) {
         fprintf(stderr,"GPU resolution: %dx%d (display %ux%u).\n",w,h,drawableWidth,drawableHeight);
     }
     if(!paletteLUT||((settings.palette||(settings.reflections&&settings.retroReflections))&&worldPending))updatePaletteLUT(palette);
-    std::vector<unsigned> overlay=hudPixels(pixels,palette);
+    // PS1 pickup and damage flashes: as on the PlayStation only the 3D view
+    // takes that flash's palette; the HUD and the sky keep the steady one
+    // (flashFreePalette). A PS1 pickup flash's strength scales how far the
+    // 3D view's palette goes from the steady one.
+    bool pickup=flash==I_FLASH_PICKUP&&settings.ps1PickupFlash,hurt=(flash==I_FLASH_DAMAGE||flash==I_FLASH_RADIATION)&&settings.ps1DamageFlash;
+    const unsigned *fixedPalette=(pickup||hurt)&&worldPending?steady:palette;
+    unsigned strengthened[256],weaponStrengthened[256];
+    const unsigned *worldPalette=palette,*weaponPalette=palette;
+    auto scaled=[&](unsigned *result,float amount) {
+        for(int i=0;i<256;++i) {
+            unsigned out=0xff000000u;
+            for(int shift=0;shift<=16;shift+=8) {
+                float from=(float)((steady[i]>>shift)&255),to=(float)((palette[i]>>shift)&255);
+                out|=(unsigned)std::clamp(std::lround(from+(to-from)*amount),0L,255L)<<shift;
+            }
+            result[i]=out;
+        }
+    };
+    if(pickup&&worldPending) {
+        // The relit weapon shows a palette shift about four times as strongly
+        // as the dim world around it, so its slider counts for a quarter:
+        // the same number on both sliders brightens them together.
+        const float weaponShare=0.25f;
+        if(settings.pickupFlashStrength!=1) {scaled(strengthened,settings.pickupFlashStrength);worldPalette=strengthened;}
+        scaled(weaponStrengthened,settings.pickupFlashWeapon*weaponShare);weaponPalette=weaponStrengthened;
+    }
+    std::vector<unsigned> overlay=hudPixels(pixels,fixedPalette,fixedPalette!=palette);
+    loadingBackdropValid=!worldPending;
+    if(!worldPending)loadingBackdrop=overlay;
     FrameView view=prepareFrame(w,h);Uniforms &camera=view.camera;
     uint64_t prepared=SDL_GetTicksNS();
     bool drawMist=!mistVertices.empty()||!shaftVertices.empty();
@@ -499,7 +527,7 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette) {
     // keeps the display's rate even without vsync.
     SDL_GPUCommandBuffer *render=profile.enabled?SDL_AcquireGPUCommandBuffer(device):command;
     if(!render) I_Error((char*)"GPU command buffer: %s",SDL_GetError());
-    uploadFrame(render,transient,sectorInfo(),palette,overlay,settingsImage);
+    uploadFrame(render,transient,sectorInfo(),worldPalette,fixedPalette,weaponPalette,overlay,settingsImage);
     drawReflection(render,view,camera);
     captureGlassProbes(render,camera);
     glassReflected=drawGlassReflection(render,view,camera);

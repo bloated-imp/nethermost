@@ -1306,10 +1306,12 @@ void ST_unloadData(void)
     ST_unloadGraphics();
 }
 
-// F4 Retro look, Status bar pack: the pack's status bar graphics (a WAD in a
+// F4 Nethermost, Status bar pack: the pack's status bar graphics (a WAD in a
 // hud folder, w_wad.c) or the game's own, reloaded and redrawn when it
 // changes after ST_Init.
 static boolean	st_loaded;
+void ST_UseMutedRedText (boolean on) { W_UseMutedRedText (on); }
+
 void ST_UseStatusBarPack (boolean on)
 {
     static int	current = -1;

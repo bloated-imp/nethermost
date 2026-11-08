@@ -169,6 +169,7 @@ void applySettings() {
     movemomentum=settings.moveMomentum;movebob=settings.moveBob;
     movebobrate=settings.moveBobRate;moveturnramp=settings.moveTurnRamp;
     ps1title=settings.ps1Title!=0;
+    hu_ps1messages=settings.ps1MessagePosition!=0;
     Game_SetPhobos(settings.phobos);
     Game_SetWeather(settings.weather);
     Game_SetPhobosRules(settings.phobosPlayer,settings.phobosEnemies,settings.phobosAir,settings.phobosRecoil);
@@ -189,6 +190,7 @@ void applySettings() {
     I_SetMadeSounds(settings.madeImpacts,settings.glassSound,settings.ambience,settings.ambienceAmount,settings.footsteps);
     I_SetFootstepVolume(settings.footstepVolume);
     ST_UseStatusBarPack(settings.statusBarPack!=0);
+    ST_UseMutedRedText(settings.mutedRedText!=0);
     I_SetPsxReverb(settings.ps1Reverb);
     I_SetAlternativeComputerSounds(settings.alternativeComputerSounds);
     I_AmbienceShowGlass(settings.accelerated&&settings.windowGlass);
@@ -609,6 +611,7 @@ FrameView prepareFrame(int w,int h) {
         if(skytexture!=tintedSky){skyTint=skyColor();horizon=skyHorizon();tintedSky=skytexture;}
         fireSkyTick();
         camera.phobos[3]=fireSkyImage()?1:0;   // the PS1 fire sky, drawn crisp (sky.frag)
+        camera.levels[1]=settings.faceFlash;   // the player's own muzzle flash on the relit face (weapon.glsl)
         camera.levels[0]=settings.lightLevel;   // the sectors' light levels scaled (world.frag)
         for(int c=0;c<3;++c)camera.fx[1+c]=skyTint[c];
         // Outdoor haze in the sky's horizon color (Game_Sun), with the fog.
@@ -648,8 +651,10 @@ FrameView prepareFrame(int w,int h) {
     view.worldX=worldX;view.worldY=worldY;view.worldW=worldW;view.worldH=worldH;
     return view;
 }
-std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette) {
+std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette,bool repaint) {
     std::vector<unsigned> overlay(pixels,pixels+SCREENWIDTH*SCREENHEIGHT);
+    // A palette other than the one pixels was painted with (PS1 screen flashes).
+    if(repaint) for(int i=0;i<SCREENWIDTH*SCREENHEIGHT;++i)overlay[i]=palette[screens[0][i]];
     if(worldPending) for(int i=0;i<SCREENWIDTH*SCREENHEIGHT;++i)overlay[i]=(overlay[i]&0xffffff)|(unsigned)v_overlaymask[i]<<24;
     // The relit face (weapon.cpp) stands in for the status bar's own: under
     // it the bar's background (st_stuff.c keeps it in screens[4]) shows, not

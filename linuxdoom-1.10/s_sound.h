@@ -74,6 +74,9 @@ S_StartSoundAtVolume
 // Stop sound for thing at <origin>
 void S_StopSound(void* origin);
 
+// A thing is going away: its sounds play out where it was.
+void S_UnlinkSound(void* origin);
+
 
 // Start music using <music_id> from sounds.h
 void S_StartMusic(int music_id);

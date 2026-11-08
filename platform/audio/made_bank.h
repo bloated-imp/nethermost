@@ -11,7 +11,8 @@
 #define MADE_STEP_VARIANTS 16  /* steps and kit play all the time; more takes, fewer repeats */
 #define MADE_LOOP_SECONDS 8   /* the wind's are longer */
 
-typedef struct { const unsigned char *data; int length, rate; } made_sample_t;
+/* data: 8-bit samples; or pcm, floats, for a recording the player supplies. */
+typedef struct { const unsigned char *data; int length, rate; const float *pcm; } made_sample_t;
 
 /* Renders everything; once, before the mixer runs. */
 void MadeBank_Build(void);

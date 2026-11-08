@@ -177,6 +177,147 @@ static boolean W_IsStatusBarLump (const char *name)
 
 int W_HasStatusBarFile (void) { return statusbarhandle != -1; }
 
+// F4 Nethermost, PS1 muted red text: the game's red text takes a status bar
+// pack's reds, so the menus, messages and intermission match its bar (whether
+// the bar itself is in use or not): DOOM's text runs down
+// the pure reds (palette 175-191), a muted bar has its own shades. The shades
+// are read from the pack's own big digits, brightest to darkest, and DOOM's
+// reds are laid along them; only the graphics named here are changed, so
+// blood, walls and the rest that use those palette entries keep them.
+#define TEXT_RED_FIRST	175
+#define TEXT_RED_COUNT	17
+static byte	textred[256];
+// The red text takes those reds with a black outline, like the pack's status
+// bar labels: DOOM's outlines are palette 191, or 47, the same dark red at
+// another index; the intermission's grey level names have 106 (textwi).
+static byte	textfont[256], textwi[256];
+static boolean	textredon;
+static boolean	statusbarused;
+
+int W_StatusBarFileInUse (void) { return statusbarused; }
+
+static const byte *W_TextMap (const char *name)
+{
+    return !strncmp (name, "WI", 2) || !strncmp (name, "CWILV", 5) ? textwi : textfont;
+}
+
+static boolean W_IsRedText (const char *lumpname)
+{
+    static const char *prefixes[] = { "M_", "STCFN", "WINUM", "WIOST", "WIP", "WIBP", "WILV", "CWILV" };
+    static const char *names[] = { "WIF", "WIENTER", "WIMINUS", "WICOLON", "WIKILRS", "WIVCTMS", "WIFRGS",
+				   "WIMSTT", "WISCRT2", "WISUCKS", "WITIME" };
+    char	name[9];
+    unsigned	i;
+    strncpy (name, lumpname, 8);
+    name[8] = 0;
+    if (!strcmp (name, "M_DOOM") || !strncmp (name, "M_SKULL", 7))	// not text: the logo, the skull's eyes
+	return false;
+    for (i = 0; i < sizeof prefixes / sizeof prefixes[0]; i++)
+	if (!strncmp (name, prefixes[i], strlen (prefixes[i])))
+	    return true;
+    for (i = 0; i < sizeof names / sizeof names[0]; i++)
+	if (!strcmp (name, names[i]))
+	    return true;
+    return false;
+}
+
+// Every pixel of a patch: counted (counts) and/or changed (map). The lump
+// may be anything a WAD holds, so nothing is trusted to stay inside it.
+static void W_PatchPixels (byte *patch, int size, const byte *map, int *counts)
+{
+    int	width, x;
+    if (size < 8)
+	return;
+    width = (short)(patch[0] | patch[1] << 8);
+    if (width <= 0 || 8 + 4*width > size)
+	return;
+    for (x = 0; x < width; x++)
+    {
+	byte	*o = patch + 8 + 4*x;
+	int	at = o[0] | o[1] << 8 | o[2] << 16 | o[3] << 24;
+	while (at >= 0 && at < size && patch[at] != 0xff)
+	{
+	    int	length, i;
+	    if (at + 2 >= size)
+		return;
+	    length = patch[at+1];
+	    if (at + 3 + length > size)
+		return;
+	    for (i = 0; i < length; i++)
+	    {
+		byte *pixel = patch + at + 3 + i;
+		if (counts)
+		    counts[*pixel]++;
+		if (map)
+		    *pixel = map[*pixel];
+	    }
+	    at += length + 4;
+	}
+    }
+}
+
+// textred from the pack's digits; false when they hold no reds to take.
+static boolean W_BuildTextRed (void)
+{
+    int		counts[256], shades[256], nshades = 0, total = 0, i, j;
+    byte	*palette;
+    int		playpal = W_CheckNumForName ("PLAYPAL");
+
+    if (playpal < 0 || W_LumpLength (playpal) < 768)
+	return false;
+    memset (counts, 0, sizeof counts);
+    for (i = 0; i < numlumps; i++)
+	if (lumpinfo[i].handle == statusbarhandle && !strncmp (lumpinfo[i].name + 1, "TTNUM", 5))
+	{
+	    byte *data = malloc (W_LumpLength (i));
+	    if (!data)
+		return false;
+	    W_ReadLump (i, data);
+	    W_PatchPixels (data, W_LumpLength (i), NULL, counts);
+	    free (data);
+	}
+    palette = malloc (W_LumpLength (playpal));
+    if (!palette)
+	return false;
+    W_ReadLump (playpal, palette);
+    for (i = 0; i < 256; i++)
+    {
+	const byte *c = palette + i*3;
+	if (c[0] >= 0x40 && c[1]*2 <= c[0] && c[2]*2 <= c[0])
+	    total += counts[i];
+    }
+    for (i = 0; i < 256; i++)
+    {
+	const byte *c = palette + i*3;
+	if (c[0] >= 0x40 && c[1]*2 <= c[0] && c[2]*2 <= c[0] && counts[i]*50 >= total && counts[i])
+	{
+	    // Brightest first.
+	    int luma = c[0]*299 + c[1]*587 + c[2]*114;
+	    for (j = nshades++; j > 0; j--)
+	    {
+		const byte *d = palette + shades[j-1]*3;
+		if (d[0]*299 + d[1]*587 + d[2]*114 >= luma)
+		    break;
+		shades[j] = shades[j-1];
+	    }
+	    shades[j] = i;
+	}
+    }
+    free (palette);
+    if (nshades < 2)
+	return false;
+    for (i = 0; i < 256; i++)
+	textred[i] = i;
+    for (i = 0; i < TEXT_RED_COUNT; i++)
+	textred[TEXT_RED_FIRST + i] = shades[i*nshades/TEXT_RED_COUNT];
+    memcpy (textfont, textred, sizeof textfont);
+    textfont[TEXT_RED_FIRST + TEXT_RED_COUNT - 1] = 0;	// the outlines, to black
+    textfont[47] = 0;
+    memcpy (textwi, textfont, sizeof textwi);
+    textwi[106] = 0;
+    return true;
+}
+
 void W_UseStatusBarFile (int on)
 {
     int i;
@@ -186,6 +327,28 @@ void W_UseStatusBarFile (int on)
 	if (lumpinfo[i].handle == statusbarhandle && lumpinfo[i].name[1] == 'T'
 	    && (lumpinfo[i].name[0] == 'S' || lumpinfo[i].name[0] == STATUSBAR_OFF))
 	    lumpinfo[i].name[0] = on ? 'S' : STATUSBAR_OFF;
+    statusbarused = on != 0;
+}
+
+void W_UseMutedRedText (int on)
+{
+    static boolean	applied;
+    boolean		muted = on && statusbarhandle != -1 && W_BuildTextRed ();
+    int			i;
+
+    if (applied && muted == textredon)
+	return;
+    applied = true;
+    textredon = muted;
+    // What is already cached (the font, a level's intermission text) is read
+    // again where it lies, so whoever holds it sees the change.
+    for (i = 0; lumpcache && i < numlumps; i++)
+	if (lumpcache[i] && W_IsRedText (lumpinfo[i].name))
+	{
+	    W_ReadLump (i, lumpcache[i]);
+	    if (textredon)
+		W_PatchPixels (lumpcache[i], W_LumpLength (i), W_TextMap (lumpinfo[i].name), NULL);
+	}
 }
 
 void W_AddFile (char *filename)
@@ -660,6 +823,8 @@ W_CacheLumpNum
 	//printf ("cache miss on lump %i\n",lump);
 	ptr = Z_Malloc (W_LumpLength (lump), tag, &lumpcache[lump]);
 	W_ReadLump (lump, lumpcache[lump]);
+	if (textredon && W_IsRedText (lumpinfo[lump].name))
+	    W_PatchPixels (lumpcache[lump], W_LumpLength (lump), W_TextMap (lumpinfo[lump].name), NULL);
     }
     else
     {

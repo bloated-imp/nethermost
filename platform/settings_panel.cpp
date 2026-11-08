@@ -164,30 +164,6 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "strafe-running. Classic: DOOM's own movement; you speed up and slow down gradually, slide a little "
                         "when you let go, and move faster diagonally at once. Demos and netgames always move as in DOOM.",
                         hasTunedMovement)}},
-                {"Tuning",{
-                    // For finding a slower PS1-like feel; 1.00 is the Movement choice above, unchanged.
-                    slider("move_walk","Walk speed",&s.moveWalk,0.3,1.5,0.05,
-                        "How fast you walk, 1.00 as the Movement choice above has it. Lower is slower. Not in demos or netgames.",
-                        hasTunedMovement),
-                    slider("move_run","Run speed",&s.moveRun,0.3,1.5,0.05,
-                        "How fast you run (the run key, or always-run with Caps Lock), 1.00 unchanged. Not in demos or netgames.",
-                        hasTunedMovement),
-                    slider("move_turn","Turn speed",&s.moveTurn,0.3,1.5,0.05,
-                        "How fast the turn keys and the joystick turn you, 1.00 unchanged. The mouse turns as before. "
-                        "Not in demos or netgames.",hasTunedMovement),
-                    slider("move_turn_ramp","Turn ramp-up",&s.moveTurnRamp,0,5,0.25,
-                        "How long the turn keys and the joystick take to reach full turning speed. 1.00 is DOOM's: a slow "
-                        "turn for 6 tics, then a jump to full speed. Other values ease from the slow turn to full speed "
-                        "instead, over that many times as long; 0 turns at full speed at once. Not in demos or netgames.",
-                        hasTunedMovement),
-                    slider("move_momentum","Momentum",&s.moveMomentum,0.5,3,0.25,
-                        "How long you take to get up to speed and to come to a stop, 1.00 unchanged; 2.00 twice as long. "
-                        "Your top speed stays the same. Not in demos or netgames.",hasTunedMovement),
-                    slider("move_bob","View bob",&s.moveBob,0,1.5,0.1,
-                        "How much the view and the weapon bob as you move, 1.00 unchanged, 0 still.",hasTunedMovement),
-                    slider("move_bob_rate","Bob rate",&s.moveBobRate,0.3,1.5,0.05,
-                        "How fast the view and the weapon bob, and the flashlight sways with them, 1.00 unchanged; lower is a "
-                        "slower, heavier step. Not in demos or netgames.",hasTunedMovement)}},
                 {"Saving",{
                     check("quick_confirm","Confirm quicksave and quickload",&s.quickConfirm,
                         "Ask before a quicksave overwrites its slot or a quickload replaces the game in progress. Off: the keys act at once.")}}}}}},
@@ -264,10 +240,6 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "a little uneven in width unless the window is a whole multiple; sharp bilinear keeps them square "
                         "and blends only the one screen pixel between them.",
                         [](const Settings &d){return d.scale!=100;}),
-                    choice("aspect","Aspect",&s.aspect,{"Fill the screen","4:3"},{0,1},
-                        "4:3: the picture keeps the shape of an old TV, in the middle of the screen with black bars beside it; "
-                        "at 240p it is 320 by 240 pixels, like the PlayStation's picture on a TV. The resolution then counts "
-                        "the box, not the screen. Widescreen makes no difference in a 4:3 box."),
                     slider("msaa","Anti-aliasing (MSAA)",&s.msaa,0,std::max(1.0,std::log2((double)gpuMaxSamples())),1,
                         "Smooths the stair-steps along the edges of walls, floors and ledges. Texels, sprites and bars stay crisp. "
                         "Each step costs more GPU time.",
@@ -293,30 +265,7 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         [](const Settings &d){return d.presentation>=2;})}},
                 {"Retro look",{
                     check("retro","Retro scanlines",&s.retro,"Dark lines between the rows of the picture, like an old CRT monitor."),
-                    check("palette","Doom palette colors",&s.palette,"Quantize the final lighting and fog to the current WAD palette."),
-                    slider("light_level","Light level",&s.lightLevel,0.4,1.2,0.05,
-                        "How bright the world's own light is: 1.00 is DOOM's light levels, lower is darker, for a moodier, more "
-                        "PlayStation-like dark. Lamps, sunlight through windows, muzzle flashes and the flashlight shine as before, "
-                        "so lit spots stand out more against the dark."),
-                    check("status_bar_pack","Status bar pack",&s.statusBarPack,
-                        "A status bar WAD you put in the hud folder beside doom.cfg (or beside the game), such as PSX Doom HUD "
-                        "for Vanilla, gives the status bar its look: only its status bar graphics are used, none of its sounds, "
-                        "menus or other changes. The first .wad by name. Off, or with no WAD there: the game's own bar."),
-                    check("ps1_title","PS1 title screen",&s.ps1Title,
-                        "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
-                        "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture."),
-                    check("ps1_fire_sky","PS1 fire sky",&s.fireSky,
-                        "On the Hell maps the sky is a wall of fire, flames licking up from the horizon into the black, as on "
-                        "the PlayStation. In DOOM's third episode and DOOM II's last third (wherever the map uses the Hell sky, "
-                        "SKY3), drawn in the WAD's own palette. Off: the painted sky."),
-                    check("ps1_motion","PS1 motion",&s.ps1Motion,
-                        "Monsters, projectiles, doors and lifts move in steps, about 15 a second, as on the PlayStation, whose game "
-                        "ran at that rate. The game itself runs as always, so controls, demos and timing are unchanged, and your own "
-                        "view stays smooth; pair it with a 30 frame limit for the whole PlayStation look."),
-                    check("ps1_dither","PS1 dithering",&s.ps1Dither,
-                        "The colours cut to the PlayStation's 15 bits through its fine 4x4 dither pattern, which breaks smooth "
-                        "shading and fog into a grain. The pattern sits on the render's pixels, so it is coarser at lower "
-                        "resolutions; with Doom palette colors on as well, the dithered colours are matched to the palette.")}}}},
+                    check("palette","Doom palette colors",&s.palette,"Quantize the final lighting and fog to the current WAD palette.")}}}},
             {"Textures",{
                 {"Filtering",{
                     choice("filter","Walls and floors",&s.filter,{"Crisp pixels","Smooth (bilinear)","Sharp bilinear"},{0,1,2},
@@ -357,10 +306,6 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "The sheen and light painted into the weapon artwork are taken out, and the lights around you relight it: "
                         "their color, darker rounded edges, glowing rims against lights behind it, and highlights that slide over "
                         "the metal as you look around and the weapon bobs."),
-                    check("face_lighting","Relit face",&s.faceLighting,
-                        "The face on the status bar is relit the same way, looking where you look: a lamp to your right lights "
-                        "his right cheek, the room ahead lights his face, a muzzle flash flares over it, and in the dark it falls "
-                        "into shadow."),
                     check("window_glass","Window glass",&s.windowGlass,
                         "Windows found in the map's geometry get a pane of glass: grimy at the edges, streaked with highlights that "
                         "slide as you move, reflecting the sky from outside. The first shot, projectile or blast through it shatters "
@@ -586,10 +531,6 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "OPL is the FM synthesis of DOS sound cards, with DOOM's own instrument set. "
                         "A .sf2 bank put in the soundfonts folder beside doom.cfg replaces the bundled one.")}},
                 {"Effects",{
-                    check("user_sounds","Supplied sound files",&s.userSounds,
-                        "Sound files you put in the sounds folder beside doom.cfg or beside the game play in place of the WAD's: "
-                        "loose files named after the sound (DSPISTOL.ogg), or a ZDoom-style pack (.pk3) as it is, a PlayStation "
-                        "sound pack's monsters with their own sounds and all. A loose file wins over one in a pack. Off: the WAD's own."),
                     choice("sound_output","Output",&s.soundOutput,{"Speakers","Headphones (KEMAR)","Headphones (KU100)"},{0,1,2},
                         "On headphones, sounds out in the world come from where they are: ahead or behind, above or below, as measured "
                         "on a dummy head (SADIE II, University of York). KEMAR tells front from back best; KU100 is the more neutral. "
@@ -616,9 +557,6 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "Your steps sound by what the floor is: stone, metal, wood, grass and carpet. In water you splash, "
                         "in nukage, slime, blood and lava it gloops, and monsters wading through liquids splash too. "
                         "Monsters on dry floors stay as silent as ever."),
-                    slider("footstep_volume","Footstep volume",&s.footstepVolume,0,2,0.05,
-                        "How loud your footsteps and splashes are, and monsters' splashes, next to the other effects. 1.00 as made.",
-                        [](const Settings &d){return d.footsteps!=0;}),
                     check("ambience","Ambience",&s.ambience,
                         "Lamps, door lights and computers hum, nukage and blood bubble, lava rumbles, fire crackles, water drips and wind blows "
                         "under the sky, heard dull through window glass until it is shot, where the map shows them. Only near ones are heard; "
@@ -633,11 +571,6 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         {"25%","50%","75%","100%","125%","150%","175%","200%"})}}}},
             {"Hearing",{
                 {"Rooms",{
-                    check("ps1_reverb","PS1 reverb",&s.ps1Reverb,
-                        "The PlayStation's own reverb: its sound chip's reverb unit, set for each level as PlayStation DOOM set "
-                        "it, from small studios to its long, washing Space echo. The same everywhere indoors on a map; sounds "
-                        "made out under the sky stay dry. Replaces the measured room acoustics while on; Echo and reverb still "
-                        "sets how much. Levels the PlayStation didn't have use its usual Hall."),
                     check("room_acoustics","Room acoustics",&s.roomAcoustics,
                         "Sounds echo off the walls around you and ring on in a tail measured from the room: corridors slap back, "
                         "big metal halls boom, wooden rooms stay dull and the outdoors almost dry."),
@@ -654,7 +587,117 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                     check("natural_falloff","Natural distance falloff",&s.naturalFalloff,
                         "Far sounds fade the way they do in air, losing half their strength each time the distance doubles, "
                         "so a monster across the room sounds across the room. Gunfire and blasts carry farther, faint and dull. "
-                        "Off: DOOM's straight fade, still loud at mid range.",hasFalloff)}}}}}}};
+                        "Off: DOOM's straight fade, still loud at mid range.",hasFalloff)}}}}}},
+        // What this fork adds, together for tuning; to be sorted into the tabs above later.
+        {"Nethermost",{
+            {"Picture",{
+                {"Picture",{
+                    choice("aspect","Aspect",&s.aspect,{"Fill the screen","4:3"},{0,1},
+                        "4:3: the picture keeps the shape of an old TV, in the middle of the screen with black bars beside it; "
+                        "at 240p it is 320 by 240 pixels, like the PlayStation's picture on a TV. The resolution then counts "
+                        "the box, not the screen. Widescreen makes no difference in a 4:3 box."),
+                    slider("light_level","Light level",&s.lightLevel,0.1,1.2,0.05,
+                        "How bright the world's own light is: 1.00 is DOOM's light levels, lower is darker, for a moodier, more "
+                        "PlayStation-like dark. Lamps, sunlight through windows, muzzle flashes and the flashlight shine as before, "
+                        "so lit spots stand out more against the dark."),
+                    check("ps1_dither","PS1 dithering",&s.ps1Dither,
+                        "The colours cut to the PlayStation's 15 bits through its fine 4x4 dither pattern, which breaks smooth "
+                        "shading and fog into a grain. The pattern sits on the render's pixels, so it is coarser at lower "
+                        "resolutions; with Doom palette colors on as well, the dithered colours are matched to the palette."),
+                    check("ps1_motion","PS1 motion",&s.ps1Motion,
+                        "Monsters, projectiles, doors and lifts move in steps, about 15 a second, as on the PlayStation, whose game "
+                        "ran at that rate. The game itself runs as always, so controls, demos and timing are unchanged, and your own "
+                        "view stays smooth; pair it with a 30 frame limit for the whole PlayStation look."),
+                    check("ps1_fire_sky","PS1 fire sky",&s.fireSky,
+                        "On the Hell maps the sky is a wall of fire, flames licking up from the horizon into the black, as on "
+                        "the PlayStation. In DOOM's third episode and DOOM II's last third (wherever the map uses the Hell sky, "
+                        "SKY3), drawn in the WAD's own palette. Off: the painted sky."),
+                    check("ps1_title","PS1 title screen",&s.ps1Title,
+                        "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
+                        "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture.")}}}},
+            {"HUD",{
+                {"HUD",{
+                    check("status_bar_pack","Status bar pack",&s.statusBarPack,
+                        "A status bar WAD you put in the hud folder beside doom.cfg (or beside the game), such as PSX Doom HUD "
+                        "for Vanilla, gives the status bar its look: only its status bar graphics are used, none of its sounds, "
+                        "menus or other changes. The first .wad by name. Off, or with no WAD there: the game's own bar."),
+                    check("ps1_loading","PS1 loading screen",&s.ps1Loading,
+                        "Between levels the LOADING plaque shows over the last screen, as on the PlayStation, from a loading.png you "
+                        "put in the hud folder beside doom.cfg. Off, or with no such file: the title and progress bar."),
+                    check("ps1_message_position","PS1 message position",&s.ps1MessagePosition,
+                        "Pickup and other messages appear just above the status bar, as on the PlayStation, where a message also "
+                        "takes the place of the automap's level name. Off: at the top of the screen, as on PC."),
+                    check("ps1_muted_red","PS1 muted red text",&s.mutedRedText,
+                        "The game's red text (menus, messages, intermission) in the muted reds of the status bar WAD in the hud "
+                        "folder, like the PlayStation's, and menus and messages with a black outline like the status bar's labels. Off: DOOM's "
+                        "bright red. Does nothing without such a WAD.")}}}},
+            {"Flashes",{
+                {"Flashes",{
+                    check("ps1_pickup_flash","PS1 pickup flash",&s.ps1PickupFlash,
+                        "The flash from picking things up tints only the 3D view and your weapon, as on the PlayStation: the status "
+                        "bar, on-screen text and sky stay as they are. Off: the whole screen flashes, as on PC."),
+                    slider("ps1_pickup_strength","PS1 pickup flash: screen",&s.pickupFlashStrength,0,3,0.1,
+                        "How strongly a pickup tints the 3D view. 1.00 is the palette's own, 0 none, higher stronger.",
+                        [](const Settings &d){return d.ps1PickupFlash!=0;}),
+                    slider("ps1_pickup_weapon","PS1 pickup flash: weapon",&s.pickupFlashWeapon,0,12,0.25,
+                        "How strongly a pickup tints your weapon. The same number as the screen's slider brightens the two about equally; "
+                        "0 none, higher stronger.",
+                        [](const Settings &d){return d.ps1PickupFlash!=0;}),
+                    check("ps1_damage_flash","PS1 damage flash",&s.ps1DamageFlash,
+                        "The flash from taking damage, and the radiation suit's green, tint only the 3D view and your weapon, as on the "
+                        "PlayStation. Off: the whole screen flashes, as on PC.")}}}},
+            {"Weapon",{
+                {"Weapon",{
+                    slider("weapon_flash_bounce","Muzzle flash bounce on weapon",&s.flashBounce,0,3,0.1,
+                        "How much of your own muzzle flash comes back off the walls, floor and ceiling around you onto the weapon: "
+                        "strong in a tight room or against a wall, little out in the open. 0 none.",
+                        [](const Settings &d){return d.weaponLighting!=0;}),
+                    check("face_lighting","Relit face",&s.faceLighting,
+                        "The face on the status bar is relit like the weapon, looking where you look: a lamp to your right lights "
+                        "his right cheek, the room ahead lights his face, a muzzle flash flares over it, and in the dark it falls "
+                        "into shadow."),
+                    slider("face_muzzle_flash","Muzzle flash on face",&s.faceFlash,0,2,0.05,
+                        "How strongly your own weapon's muzzle flash lights the face on the status bar. 1.00 as it was, 0 none.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0;})}}}},
+            {"Movement",{
+                {"Movement",{
+                    slider("move_walk","Walk speed",&s.moveWalk,0.3,1.5,0.05,
+                        "How fast you walk, 1.00 as the Movement choice (Game, Play) has it. Lower is slower. Not in demos or netgames.",
+                        hasTunedMovement),
+                    slider("move_run","Run speed",&s.moveRun,0.3,1.5,0.05,
+                        "How fast you run (the run key, or always-run with Caps Lock), 1.00 unchanged. Not in demos or netgames.",
+                        hasTunedMovement),
+                    slider("move_turn","Turn speed",&s.moveTurn,0.3,1.5,0.05,
+                        "How fast the turn keys and the joystick turn you, 1.00 unchanged. The mouse turns as before. "
+                        "Not in demos or netgames.",hasTunedMovement),
+                    slider("move_turn_ramp","Turn ramp-up",&s.moveTurnRamp,0,5,0.25,
+                        "How long the turn keys and the joystick take to reach full turning speed. 1.00 is DOOM's: a slow "
+                        "turn for 6 tics, then a jump to full speed. Other values ease from the slow turn to full speed "
+                        "instead, over that many times as long; 0 turns at full speed at once. Not in demos or netgames.",
+                        hasTunedMovement),
+                    slider("move_momentum","Momentum",&s.moveMomentum,0.5,3,0.25,
+                        "How long you take to get up to speed and to come to a stop, 1.00 unchanged; 2.00 twice as long. "
+                        "Your top speed stays the same. Not in demos or netgames.",hasTunedMovement),
+                    slider("move_bob","View bob",&s.moveBob,0,1.5,0.1,
+                        "How much the view and the weapon bob as you move, 1.00 unchanged, 0 still.",hasTunedMovement),
+                    slider("move_bob_rate","Bob rate",&s.moveBobRate,0.3,1.5,0.05,
+                        "How fast the view and the weapon bob, and the flashlight sways with them, 1.00 unchanged; lower is a "
+                        "slower, heavier step. Not in demos or netgames.",hasTunedMovement)}}}},
+            {"Sound",{
+                {"Sound",{
+                    check("ps1_reverb","PS1 reverb",&s.ps1Reverb,
+                        "The PlayStation's own reverb: its sound chip's reverb unit, set for each level as PlayStation DOOM set "
+                        "it, from small studios to its long, washing Space echo. The same everywhere indoors on a map; sounds "
+                        "made out under the sky stay dry. Replaces the measured room acoustics while on; Echo and reverb still "
+                        "sets how much. Levels the PlayStation didn't have use its usual Hall."),
+                    slider("footstep_volume","Footstep volume",&s.footstepVolume,0,2,0.05,
+                        "How loud your footsteps and splashes are, and monsters' splashes, next to the other effects. 1.00 as made.",
+                        [](const Settings &d){return d.footsteps!=0;}),
+                    check("user_sounds","Supplied sound files",&s.userSounds,
+                        "Sound files you put in the sounds folder beside doom.cfg or beside the game play in place of the WAD's: "
+                        "loose files named after the sound (DSPISTOL.ogg), or a ZDoom-style pack (.pk3) as it is, a PlayStation "
+                        "sound pack's monsters with their own sounds and all. A loose file wins over one in a pack. Off: the WAD's own.")}}}}}}
+    };
     // A game without Phobos (Heretic) shows no Phobos page.
     if(!Game_HasEffect(GAME_EFFECT_PHOBOS))groups[0].tabs.erase(groups[0].tabs.begin()+1);
     return groups;

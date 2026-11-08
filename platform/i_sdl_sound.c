@@ -127,7 +127,7 @@ static float reverb_amount = 1;
 /* The listener's room, and the bigger space beyond it (measured on the game
    thread; the mixer only has its coupling). */
 static reverb_t *room_reverb, *beyond_reverb;
-/* PS1 reverb (F4 Sound, PS1 reverb; psx_reverb.h): the PlayStation SPU's
+/* PS1 reverb (F4 Nethermost, PS1 reverb; psx_reverb.h): the PlayStation SPU's
    reverb with the map's preset and depth (Game_PsxReverb) in place of the
    measured rooms. Sounds made under open sky take none (next_psx_dry, for
    the next sound started), as the PlayStation's maps marked their outdoors;
@@ -402,6 +402,14 @@ void I_InitSound(void)
     { fprintf(stderr, "Audio unavailable: %s\n", SDL_GetError()); return; }
     SDL_AudioSpec spec = { SDL_AUDIO_F32, 2, OUTPUT_RATE };
     MadeBank_Build();
+    /* A recording named after an ambient kind stands in for its loop
+       (sounds/computer.wav, sounds/crt.ogg; Ambient_Name gives the names). */
+    for (int k = 0; k < AMBIENT_KINDS; ++k)
+    {
+        user_sound_t u;
+        if (!Ambient_Stepped(k) && UserSounds_Lump(Ambient_Name(k), &u) && u.pcm)
+            AmbienceVoices_SupplyLoop(k, u.pcm, u.length, u.rate);
+    }
     room_reverb = Reverb_New(OUTPUT_RATE);
     beyond_reverb = Reverb_New(OUTPUT_RATE);
     psx_reverb = PsxReverb_New();
@@ -573,7 +581,7 @@ void I_SoundAt(int handle, fixed_t x, fixed_t y, fixed_t z)
 /* The next I_StartSound is the listener's own: on Phobos heard through the suit. */
 void I_SoundOwn(void) { next_own = 1; }
 void I_SoundFrom(int type, int weapon) { next_type = type; next_weapon = weapon; }
-void I_SetUserSounds(int enabled) { user_sounds = enabled != 0; }
+void I_SetUserSounds(int enabled) { user_sounds = enabled != 0; AmbienceVoices_UseSupplied(user_sounds); }
 
 static sample_t supplied(const user_sound_t *u)
 {
@@ -718,10 +726,10 @@ int I_SoundLump(const char *name)
    treble, for a sound heard through a wall whatever the way to it. Personal
    movement keeps source loudness and the effects volume linear in its
    room send; only distance makes it relatively wetter. */
-static void play_through(const made_sample_t *sample, float x, float y, float z, float level, float reach, float most, int personal)
+static void play_sample(sample_t sample, float x, float y, float z, float level, float reach, float most, int personal)
 {
     const mobj_t *listener = players[consoleplayer].mo;
-    if (!stream || !sample || !listener || gamestate != GS_LEVEL || level <= 0) return;
+    if (!stream || (!sample.data && !sample.pcm) || !listener || gamestate != GS_LEVEL || level <= 0) return;
     float distance = listener_distance(x, y);
     if (distance > 1200 * reach) return;
     float volume = snd_SfxVolume * level * distance_gain(distance / reach);
@@ -733,7 +741,7 @@ static void play_through(const made_sample_t *sample, float x, float y, float z,
                                                   muffle_walls, muffle_distance));
     float way_x = 0, way_y = 0, bend = personal ? 0 : Occlusion_Opening((fixed_t)(x * FRACUNIT), (fixed_t)(y * FRACUNIT), (fixed_t)(z * FRACUNIT), &way_x, &way_y);
     if (psx_mode) next_psx_dry = Game_UnderSky(x, y);
-    int handle = start_sample((sample_t){ sample->data, sample->length, sample->rate }, volume, pan_at(x, y), 128, cutoff,
+    int handle = start_sample(sample, volume, pan_at(x, y), 128, cutoff,
                               Beyond_Share(&beyond, x, y), send_scale, air);
     /* The listener's own movement stays with them. */
     if (personal) return;
@@ -748,6 +756,51 @@ static void play_through(const made_sample_t *sample, float x, float y, float z,
     SDL_UnlockAudioStream(stream);
 }
 
+static void play_through(const made_sample_t *sample, float x, float y, float z, float level, float reach, float most, int personal)
+{
+    if (sample) play_sample((sample_t){ sample->data, sample->length, sample->rate, NULL }, x, y, z, level, reach, most, personal);
+}
+
+/* Recordings the player supplies for a made-up effect: files in the sounds
+   folder named after the effect and a number (splash-thick1.wav, step-metal2.ogg;
+   Impact_Name gives the names), played in its place, a different one each time.
+   Each is held as a copy brought to the peak of the sound it replaces, so
+   swapping sounds leaves the balance, and the sliders over it, as they were
+   (a louder level wouldn't do it: the mixer caps a sound's volume). */
+#define MOST_TAKES 16
+static sample_t impact_takes[IMPACT_KINDS][MOST_TAKES];
+static signed char impact_take_count[IMPACT_KINDS];   /* 0 not looked for, -1 none */
+static int takes_of(int kind)
+{
+    if (impact_take_count[kind]) return impact_take_count[kind];
+    /* The made-up tinkle is a faint patter, far under a break; a recording
+       of a hit on glass is matched to the break instead, or a gunshot buries it. */
+    int reference = kind == IMPACT_GLASS_TINKLE ? IMPACT_GLASS_BREAK : kind;
+    float made = 0;
+    for (int v = 0; v < MadeBank_Variants(reference); ++v)
+    {
+        const made_sample_t *m = MadeBank_Impact(reference, v);
+        for (int i = 0; m && i < m->length; ++i) made = SDL_max(made, fabsf((m->data[i] - 128) / 128.0f));
+    }
+    int found = 0;
+    for (int n = 1; n <= MOST_TAKES && found < MOST_TAKES; ++n)
+    {
+        char name[64];
+        user_sound_t u;
+        snprintf(name, sizeof name, "%s%d", Impact_Name(kind), n);
+        if (!UserSounds_Lump(name, &u) || !u.pcm) continue;
+        float peak = 0;
+        for (int i = 0; i < u.length; ++i) peak = SDL_max(peak, fabsf(u.pcm[i]));
+        float gain = peak > 1e-4f && made > 0 ? made / peak : 1, *copy = malloc((size_t)u.length * sizeof *copy);
+        if (!copy) continue;
+        for (int i = 0; i < u.length; ++i) copy[i] = u.pcm[i] * gain;
+        u.pcm = copy;
+        impact_takes[kind][found++] = supplied(&u);
+    }
+    impact_take_count[kind] = found ? (signed char)found : -1;
+    return impact_take_count[kind];
+}
+
 static void play_at(const made_sample_t *sample, float x, float y, float z, float level, float reach)
 {
     play_through(sample, x, y, z, level, reach, OCCLUSION_OPEN_HZ, 0);
@@ -760,6 +813,17 @@ static void play_kind(int kind, float x, float y, float z, float level, float re
     static unsigned turn = 0x1234567u;
     if (kind < 0 || kind >= IMPACT_KINDS) return;
     if (!started) { started = 1; for (int k = 0; k < IMPACT_KINDS; ++k) last[k][0] = last[k][1] = -1; }
+    int takes = user_sounds ? takes_of(kind) : 0;
+    if (takes > 0)
+    {
+        int take;
+        do { turn = turn * 1103515245u + 12345u; take = (int)((turn >> 16) % (unsigned)takes); }
+        while ((takes > 1 && take == last[kind][0]) || (takes > 2 && take == last[kind][1]));
+        last[kind][1] = last[kind][0];
+        last[kind][0] = take;
+        play_sample(impact_takes[kind][take], x, y, z, level, reach, OCCLUSION_OPEN_HZ, personal);
+        return;
+    }
     int count = MadeBank_Variants(kind), variant;
     do { turn = turn * 1103515245u + 12345u; variant = (int)((turn >> 16) % (unsigned)count); }
     while (variant == last[kind][0] || variant == last[kind][1]);
@@ -773,7 +837,7 @@ void I_MadeSound(int kind, float x, float y, float z)
     if (glass_fracture && kind == IMPACT_GLASS_BREAK) kind = IMPACT_GLASS_FRACTURE;
     if (glass_fracture && kind == IMPACT_GLASS_BIG) kind = IMPACT_GLASS_FRACTURE_BIG;
     float level = kind <= IMPACT_SPARK_ZAP ? 0.6f : kind <= IMPACT_SCREEN_DIES ? 0.7f
-                : kind == IMPACT_GLASS_TINKLE ? 0.6f : kind == IMPACT_GORE_BURST ? 0.5f
+                : kind == IMPACT_GLASS_TINKLE ? (user_sounds && takes_of(kind) > 0 ? 1.0f : 0.6f) : kind == IMPACT_GORE_BURST ? 0.5f
                 : kind == IMPACT_GORE_SLAP ? 0.7f : 1.0f;
     /* A window breaking is loud: heard across a courtyard, where an
        enemy's stray shot can take it out. */

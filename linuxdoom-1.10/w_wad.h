@@ -86,6 +86,9 @@ void*	W_CacheLumpName (char* name, int tag);
 // status bar graphics in use or not (the game's own then).
 int	W_HasStatusBarFile (void);
 void	W_UseStatusBarFile (int on);
+int	W_StatusBarFileInUse (void);
+// The game's red text in the pack's muted reds, or DOOM's own.
+void	W_UseMutedRedText (int on);
 
 
 

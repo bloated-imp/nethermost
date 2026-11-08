@@ -145,7 +145,7 @@ int Game_BlastFrame(const struct mobj_s *thing)
     return state >= S_BEXP && state <= S_BEXP5 ? state - S_BEXP : -1;
 }
 
-/* The PlayStation's reverb (F4 PS1 reverb): each level PlayStation DOOM had,
+/* The PlayStation's reverb (F4 Nethermost, PS1 reverb): each level PlayStation DOOM had,
    by its PC map, with the SPU preset and depth it set there (PsyDoom's
    MapInfo_Defaults_Doom.cpp, from the original game). Levels it didn't have
    (E3M8, E3M9, E4M5-E4M7, E4M9, MAP13, MAP15, MAP20, MAP24, MAP28-MAP30 and

@@ -1019,7 +1019,7 @@ void D_DoomMain (void)
     if (gamemode == commercial && I_ProgramFile ("library.wad"))
 	D_AddFile ((char *)I_ProgramFile ("library.wad"));
 
-    // A status bar pack (F4 Retro look, Status bar pack): its status bar
+    // A status bar pack (F4 Nethermost, Status bar pack): its status bar
     // graphics only ('^', w_wad.c), after the game's and before the
     // player's own, so a mod's own bar still wins.
     {

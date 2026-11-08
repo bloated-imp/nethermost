@@ -37,7 +37,7 @@ mixer's rate and follow the Music Volume slider. Code:
 
 ## Movement Tuning
 
-**F4 → Game → Play → Tuning** has seven sliders for finding a slower,
+**F4 → Nethermost → Movement** has seven sliders for finding a slower,
 heavier feel by playing. Each is a multiplier; 1.00 leaves the Movement choice
 above as it is.
 
@@ -56,34 +56,34 @@ recordings play back as they were made. DOOM only, not Heretic. Code:
 
 ## The PlayStation's Picture
 
-In **F4 → Graphics**:
+Resolution and upscaling are in **F4 → Graphics**; the rest are in **F4 → Nethermost**:
 
 - **Resolution: 240p** with **Upscaling: Crisp pixels** draws everything, walls,
   sprites, weapon and status bar, on one coarse grid of square pixels. A screen
   whose height is a whole multiple of 240 (720, 1440, 2160) keeps them even.
-- **Aspect: 4:3** keeps the picture the shape of an old TV, centred with black
+- **Picture → Aspect: 4:3** keeps the picture the shape of an old TV, centred with black
   bars beside it; at 240p it is 320 by 240.
-- **Retro look → PS1 dithering** cuts the colours to the console's 15 bits
+- **Picture → PS1 dithering** cuts the colours to the console's 15 bits
   through its 4x4 ordered dither, so smooth shading and fog break into a fine
   grain. It is rounded rather than truncated, so rooms keep their brightness.
 
-- **Retro look â†’ PS1 title screen** (on by default) opens on fire burning up
+- **Picture → PS1 title screen** (on by default) opens on fire burning up
   from the bottom of a black screen, the DOOM logo rising into place from
   behind the flames, as on the PlayStation, and stays until a button is
   pressed, which opens the menu over it. It is drawn from the WAD's own
   logo (M_DOOM) and palette; off, the title is the WAD's TITLEPIC.
 
-- **Retro look → PS1 fire sky** (on by default) turns the Hell maps' sky (SKY3:
+- **Picture → PS1 fire sky** (on by default) turns the Hell maps' sky (SKY3:
   DOOM's third episode, DOOM II's MAP21 on) into a wall of fire, as on the
   PlayStation: its own fire algorithm (P_FireSky, as reconstructed in
   PSXDOOM-RE) at about its 15 updates a second, in its 37 fire colours, drawn
   crisp with none of the painted sky's softening or haze.
 
-- **Retro look → Light level** scales the rooms' own light (0.40 to 1.20, 1.00
+- **Picture → Light level** scales the rooms' own light (0.40 to 1.20, 1.00
   DOOM's): walls, floors, monsters, the weapon and the face darken, while lamps,
   window light, muzzle flashes, projectiles, fullbright frames and the
   flashlight keep their strength, so lit spots stand out against the dark.
-- **Retro look → PS1 motion** draws monsters, projectiles, doors and lifts in
+- **Picture → PS1 motion** draws monsters, projectiles, doors and lifts in
   steps about 15 a second, as the PlayStation's game tics moved them; the game
   still runs at 35 and your view stays smooth.
 
@@ -99,11 +99,16 @@ right lights his right cheek, the room ahead lights his face, a muzzle
 flash flares over it, and in the dark it falls into shadow. It keeps its
 painted pixels, takes light in the colormaps' 1/16 steps, stays matte like
 skin, and coloured light only tints it. The bullet guns' flashes shine a
-soft gunpowder orange. **F4 â†’
-Graphics â†’ Relit face** (with Relit weapon on). Code: the face in
+soft gunpowder orange. **F4 →
+Nethermost → Weapon → Relit face** (with Relit weapon on). Code: the face in
 `weaponDraws` (`platform/scene3d/weapon.cpp`), drawn over the status bar in
 `drawOverlays` (`platform/gpu3d/draw.cpp`), `MODE_FACE` in
 `platform/shaders/world/weapon.glsl`.
+
+The relit weapon also catches your own muzzle flash coming back off the walls,
+floor and ceiling around you: strong in a tight room or against a wall, little
+out in the open. **F4 → Nethermost → Weapon → Muzzle flash bounce on weapon**
+sets how much.
 
 ## Your Own Sound Effects
 
@@ -125,7 +130,7 @@ their own treble; muffling, echoes and distance work as for the WAD's.
 folder. A loose file always wins over one inside a pack, the save folder's
 over those beside the game, and an earlier pack (by name) over a later one.
 A loose `SNDINFO.txt` is read after the packs', so it can point any name
-(`imp/pain  DSMYPAIN`) at another file. **F4 â†’ Sound â†’ Effects â†’ Supplied
+(`imp/pain  DSMYPAIN`) at another file. **F4 → Sound → Effects → Supplied
 sound files** switches between them and the WAD's own; `-nousersounds`
 ignores them, and `-checksounds` decodes every one at start and reports any
 that can't be read.
@@ -133,6 +138,31 @@ that can't be read.
 Code: `platform/user_sounds.c`, `platform/audio/zip_read.c`,
 `platform/audio/sndinfo.c`, the names monsters answer to in `Game_SoundName`
 (`platform/games/doom/profile.c`); tests: `tests/user_sounds.c`.
+
+## Message Position
+
+**F4 → Nethermost → HUD → PS1 message position** (on by default) puts pickup
+and other messages just above the status bar, as on the PlayStation, where a
+message also takes the place of the automap's level name. Off, they are at the
+top of the screen, as on PC.
+
+## Loading Screen
+
+**F4 → Nethermost → HUD → PS1 loading screen** (on by default) shows the LOADING
+plaque between levels at its PlayStation position, over the last screen shown, in
+place of the title and progress bar. The art is yours: a `loading.png` in the `hud`
+folder beside doom.cfg. Without it, the progress bar stays.
+
+## Screen Flashes
+
+In **F4 → Nethermost → Flashes**, two switches keep a flash to the 3D
+view and your weapon, as the PlayStation did, with the status bar, on-screen
+text and sky left as they are; off, the whole screen flashes, as on PC.
+
+- **PS1 pickup flash** (on by default), with a **screen** and a **weapon** slider
+  for how strongly it tints each; the same number on both brightens them about
+  equally.
+- **PS1 damage flash** (off by default), which also covers the radiation suit.
 
 ## Status Bar Pack
 
@@ -142,17 +172,20 @@ with the game.
 
 1. Put the WAD in a `hud` folder in the game's save folder (beside doom.cfg),
    or in one beside the game. The first `.wad` by name is used.
-2. **F4 → Graphics → Display → Retro look → Status bar pack** (on by default)
+2. **F4 → Nethermost → HUD → Status bar pack** (on by default)
    switches between its bar and the game's own, at once.
 
 Only its status bar graphics are used (STBAR, STARMS, the numbers, keys and
-faces); its sounds, menus, fonts and DEHACKED are left out. A `-file` mod's own
+faces); its sounds, menus, fonts and DEHACKED are left out. **HUD → PS1
+muted red text** (on by default) gives the game's red text (menus, messages,
+intermission) the reds of the pack's digits, so it matches the bar, and menus and messages
+a black outline like the bar's labels; off, DOOM's bright red. A `-file` mod's own
 bar still wins. Code: `W_AddFile`'s `^` in `linuxdoom-1.10/w_wad.c`,
 `ST_UseStatusBarPack` in `st_stuff.c`, `I_StatusBarPack`.
 
 ## PS1 Reverb
 
-**F4 → Sound → Hearing → Rooms → PS1 reverb** swaps the measured room acoustics
+**F4 → Nethermost → Sound → PS1 reverb** swaps the measured room acoustics
 for the PlayStation's own reverb: its sound chip's reverb unit, rebuilt from the
 psx-spx reference's formula and preset registers, running at the chip's 22050
 Hz. Each level takes the preset and depth PlayStation DOOM gave it (Space on
@@ -162,9 +195,23 @@ music takes none, since the recorded PlayStation tracks carry their own. Echo
 and reverb still sets how much. Code: `platform/audio/psx_reverb.c`,
 `Game_PsxReverb` in `platform/games/doom/profile.c`; test: `tests/psx_reverb.c`.
 
+## Your Own Footsteps and Other Made-Up Sounds
+
+The sounds the game makes up (footsteps, splashes, breaking glass and so on) can
+be swapped for recordings. Put files in the `sounds` folder, named after the
+effect and a number: `splash-thick1.wav`, `splash-thick2.wav` for nukage, slime,
+blood and lava; `splash-water`, `step-stone`, `step-metal`, `step-wood`,
+`step-soft`, the `run-` equivalents, `glass-shatter` and the rest (the names are
+those `doom-sfx-render` writes). A different one plays each time, at the loudness
+of the sound it replaces. Supplied sound files (F4) switches them off.
+
+Ambient loops work the same way, one file named after the kind: `computer.wav` for
+the computer walls, `crt`, `lamp`, `nukage`, `fire` and so on (not wind or rain). They
+are looped and brought to the loudness of the loop they replace.
+
 ## Footstep Volume
 
-**F4 → Sound → Effects → Footstep volume** sets how loud footsteps and splashes
+**F4 → Nethermost → Sound → Footstep volume** sets how loud footsteps and splashes
 are (0 to 2, 1.00 as made).
 
 ## Planned
