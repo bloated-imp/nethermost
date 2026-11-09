@@ -9,9 +9,61 @@ namespace doom3d {
 // keepPaint (the status bar's face): its colors stay as painted. It is too
 // small for the weapon's de-lighting, which flattens it to mud; only its
 // normals and gloss are derived.
+// Which pixels of the rocket launcher's flash frames (MISF) are the launcher:
+// id painted the front of the barrel into them, with a bright stripe and a glow
+// in the sight slot, so drawn at full brightness the barrel seems lit from inside.
+// In each column the barrel starts at the first run of grey from the top, and
+// reaches over the stripe and the notch of the slot from the columns on each side.
+// The plasma rifle's (PLSF, plasma) hold the whole gun: there it is everything
+// from the first dark or tan run down, but for the blue of its vents.
+static std::vector<byte> flashBarrel(const Image &art,const byte *palette,bool plasma) {
+    int w=art.width,h=art.height;
+    if(plasma) {
+        auto color=[&](int x,int y) {return &palette[art.pixels[2*((size_t)y*w+x)]*3];};
+        auto opaque=[&](int x,int y) {return art.pixels[2*((size_t)y*w+x)+1]!=0;};
+        auto bluish=[&](int x,int y) {const byte *c=color(x,y);return c[2]>=std::max(c[0],c[1])+16;};
+        auto gunLike=[&](int x,int y) {const byte *c=color(x,y);return opaque(x,y)&&!bluish(x,y)&&std::max({c[0],c[1],c[2]})<=200;};
+        std::vector<byte> gun((size_t)w*h,0);
+        for(int x=0;x<w;++x) {
+            int start=-1;
+            for(int y=0;y<h&&start<0;++y) {
+                int run=0;
+                for(int k=y;k<std::min(h,y+4);++k)run+=gunLike(x,k);
+                if(gunLike(x,y)&&run>=3)start=y;
+            }
+            if(start>=0)for(int y=start;y<h;++y)if(opaque(x,y)&&!bluish(x,y))gun[(size_t)y*w+x]=1;
+        }
+        return gun;
+    }
+    auto grey=[&](int x,int y) {
+        size_t i=2*((size_t)y*w+x);
+        if(!art.pixels[i+1])return false;
+        const byte *color=&palette[art.pixels[i]*3];
+        int top=std::max({color[0],color[1],color[2]}),low=std::min({color[0],color[1],color[2]});
+        return top-low<=0.22f*top&&top<=235;
+    };
+    std::vector<int> start(w,-1);
+    for(int x=0;x<w;++x)for(int y=0;y<h&&start[x]<0;++y) {
+        int run=0;
+        for(int k=y;k<std::min(h,y+4);++k)run+=grey(x,k);
+        if(grey(x,y)&&run>=3)start[x]=y;
+    }
+    std::vector<int> reached=start;
+    const int across=9;
+    for(int x=0;x<w;++x) {
+        int left=-1,right=-1;
+        for(int k=std::max(0,x-across);k<x;++k)if(start[k]>=0&&(left<0||start[k]<left))left=start[k];
+        for(int k=x+1;k<std::min(w,x+across+1);++k)if(start[k]>=0&&(right<0||start[k]<right))right=start[k];
+        if(left>=0&&right>=0&&(start[x]<0||start[x]>std::max(left,right)+2))reached[x]=std::max(left,right);
+    }
+    std::vector<byte> barrel((size_t)w*h,0);
+    for(int x=0;x<w;++x)if(reached[x]>=0)for(int y=reached[x];y<h;++y)barrel[(size_t)y*w+x]=1;
+    return barrel;
+}
 // angryEyes: an invincible player's rampage or grin face, its eyes painted as
 // the god face's are (the game shows those two over the god face).
-static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false) {
+// barrelOnly: of the rocket launcher's flash frames, just the launcher (flashBarrel).
+static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false,bool barrelOnly=false) {
     // Weapons 2.0 keeps the weapon's paint over a glowing floor: that strong a
     // light leaves only the artist's shading to read as detail (world.frag).
     // Anywhere else the paint's light is taken out, for the room's to replace.
@@ -19,12 +71,17 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false) {
     if(weaponProbe[5*4+3]>0.6)overGlow=true;else if(weaponProbe[5*4+3]<0.4)overGlow=false;
     bool face=keepPaint;
     keepPaint=keepPaint||(settings.weapons2&&overGlow);
-    int key=angryEyes?INT_MIN/2-(1<<24)-lump:INT_MIN/2-lump*2-(keepPaint?1:0); auto found=images.find(key); if(found!=images.end()) return found->second;
+    int key=barrelOnly?INT_MIN/2-(2<<24)-lump*2-(keepPaint?1:0):angryEyes?INT_MIN/2-(1<<24)-lump:INT_MIN/2-lump*2-(keepPaint?1:0); auto found=images.find(key); if(found!=images.end()) return found->second;
     const Image &source=lumpImage(lump,false);
     int w=source.width,h=source.height,stride=2*w+2;
     const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
-    auto maps=doom_weapon_delight(w,h,source.pixels.data(),palette);
-    if(keepPaint) maps.pixels=source.pixels;
+    std::vector<byte> art=source.pixels;
+    if(barrelOnly) {
+        auto barrel=flashBarrel(source,palette,!strncmp(lumpinfo[lump].name,"PLSF",4));
+        for(size_t i=0;i<barrel.size();++i)if(!barrel[i])art[2*i+1]=0;
+    }
+    auto maps=doom_weapon_delight(w,h,art.data(),palette);
+    if(keepPaint) maps.pixels=art;
     // Row 16, the five pixels of each squinting eye, in every blood level; the
     // god face's own yellows, near white toward the outside as its eyes are.
     if(angryEyes&&w==24&&h>16) {
@@ -108,6 +165,69 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false) {
     if(!image.texture) I_Error((char*)"Could not allocate a GPU texture");
     return images.emplace(key,std::move(image)).first->second;
 }
+// The rocket launcher's flash frame without the launcher: the flame, which
+// stays at full brightness over the relit barrel (weaponImage's barrelOnly).
+static Image &flashFlame(int lump) {
+    int key=INT_MIN/2-(3<<24)-lump; auto found=images.find(key); if(found!=images.end()) return found->second;
+    const Image &source=lumpImage(lump,false);
+    const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
+    std::vector<byte> flame=source.pixels;
+    auto barrel=flashBarrel(source,palette,!strncmp(lumpinfo[lump].name,"PLSF",4));
+    for(size_t i=0;i<barrel.size();++i)if(barrel[i])flame[2*i+1]=0;
+    return images.emplace(key,upload(source.width,source.height,flame.data(),source.left,source.top)).first->second;
+}
+// The BFG's green on the gun, 0 to 1. The game's muzzle flash only comes when the
+// ball leaves, but its flames sit on the gun from the start of the charge: they
+// grow over the small flame frame, peak on the big one as the ball leaves, and
+// the shot's own flash carries the fade.
+static float bfgBlast() {
+    if(!heldWeaponIs("BFGG"))return 0;
+    const pspdef_t &flame=players[displayplayer].psprites[1];
+    float amount=0;
+    if(flame.state&&flame.state->tics>0) {
+        const spriteframe_t &frame=sprites[flame.state->sprite].spriteframes[flame.state->frame&FF_FRAMEMASK];
+        const char *name=lumpinfo[firstspritelump+frame.lump[0]].name;
+        float through=std::clamp(1-(flame.tics-renderFraction)/(float)flame.state->tics,0.0f,1.0f);
+        if(!strncmp(name,"BFGFA",5))amount=0.45f+0.3f*through;
+        else if(!strncmp(name,"BFGFB",5))amount=1-0.4f*through;
+    }
+    float radius=0,strength=0;std::array<float,3> color={};
+    if(ownMuzzleFlash(radius,strength,color))amount=std::max(amount,strength/2.6f);
+    return std::min(amount,1.0f);
+}
+static const float bfgGreen[3]={0.4f,1.0f,0.35f};
+// The plasma rifle's blue on the gun, 0 to 1: the arcs while the flash frames
+// show, a shade less on the smaller one, and each shot's own flash.
+static float plasmaBlast() {
+    const pspdef_t &arcs=players[displayplayer].psprites[1];
+    float amount=0;
+    if(arcs.state) {
+        const spriteframe_t &frame=sprites[arcs.state->sprite].spriteframes[arcs.state->frame&FF_FRAMEMASK];
+        const char *name=lumpinfo[firstspritelump+frame.lump[0]].name;
+        if(!strncmp(name,"PLSFA",5))amount=0.75f;
+        else if(!strncmp(name,"PLSFB",5))amount=1;
+    }
+    float radius=0,strength=0;std::array<float,3> color={};
+    if(ownMuzzleFlash(radius,strength,color))amount=std::max(amount,strength/1.6f);
+    return std::min(amount,1.0f);
+}
+static const float plasmaBlue[3]={0.62f,0.72f,1.0f};   // the arcs' pale blue; a purer one only darkens the tan paint
+// The held gun's own light on itself (weapon.glsl), for the guns with one: its
+// color now, and its reach, fade, the screen row of its muzzle (of 200) and how
+// much of it reaches even what faces away.
+bool gunBlastLight(float color[3],float shape[4]) {
+    float amount=0,strength=1,power=2.4f;const float *hue=nullptr;
+    if(heldWeaponIs("BFGG")) {
+        amount=bfgBlast();hue=bfgGreen;strength=settings.bfgLightStrength;
+        shape[0]=settings.bfgLightSize;shape[1]=settings.bfgLightFalloff;shape[2]=140;shape[3]=0.15f;     // the flames hide the gun's top rows
+    } else if(heldWeaponIs("PLSG")) {
+        amount=plasmaBlast();hue=plasmaBlue;strength=settings.plasmaLightStrength;power=3.5f;     // the part next to its muzzle is black
+        shape[0]=settings.plasmaLightSize;shape[1]=settings.plasmaLightFalloff;shape[2]=112;shape[3]=0.4f;
+    }
+    if(amount<=0)return false;
+    for(int c=0;c<3;++c)color[c]=hue[c]*amount*power*strength;
+    return true;
+}
 // What the relit weapon sees around it, in the view's frame: ahead, behind,
 // right, left, up and down (rgb; the down face's w: how much of the floor below glows). Five rays a direction walk the
 // bake map from the eye; each hit shows its surface's average color under
@@ -122,6 +242,14 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false) {
 // The w of the fourth and fifth: which way around the player a glowing liquid
 // lies, on the map (x, y; 0 when it is all around or nowhere).
 float weaponProbe[24]={};
+// The displayed player is holding the weapon drawn with this sprite (its four
+// letters: the frames tell, in any game).
+bool heldWeaponIs(const char *sprite) {
+    const player_t &me=players[displayplayer];
+    if(!me.mo||!me.psprites[0].state)return false;
+    const spriteframe_t &frame=sprites[me.psprites[0].state->sprite].spriteframes[me.psprites[0].state->frame&FF_FRAMEMASK];
+    return !strncmp(lumpinfo[firstspritelump+frame.lump[0]].name,sprite,4);
+}
 float weaponGlowColor[3]={};
 static float weaponGlowLean[2]={};
 static std::array<float,18> weaponProbeTarget={};
@@ -258,6 +386,20 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
     // the dark artwork in step with the bright walls it answers.
     const float bounceGain=3;
     for(int c=0;c<3;++c)weaponProbe[c*4+3]=bounce[c]*bounceGain*settings.flashBounce;
+    // The BFG's and plasma rifle's flash comes back off the walls in their color and
+    // faint: it reaches the whole gun evenly, and at full strength would flatten
+    // the shape their own light gives (gunBlastLight).
+    const float *bounceHue=!settings.weapons2?nullptr:heldWeaponIs("BFGG")?bfgGreen:heldWeaponIs("PLSG")?plasmaBlue:nullptr;
+    if(bounceHue) {
+        float back=(weaponProbe[3]+weaponProbe[7]+weaponProbe[11])/3;
+        for(int c=0;c<3;++c)weaponProbe[c*4+3]=back*bounceHue[c]*0.3f;
+    }
+    // Weapons 2.0: a rocket leaving lights the launcher as a whole, a little, to
+    // go with the flare on the face; the flame's in front, where the gun can't face
+    // it. The shotgun's blast does the same for the gloves holding it.
+    float launchRadius=0,launchStrength=0;std::array<float,3> launchColor={};
+    if(settings.weapons2&&(heldWeaponIs("MISG")||heldWeaponIs("SHTG"))&&ownMuzzleFlash(launchRadius,launchStrength,launchColor))
+        for(int c=0;c<3;++c)weaponProbe[c*4+3]+=launchColor[c]*launchStrength*0.2f;
 }
 // The weapon's place on the screen at the last tic (beforeTic), so its bob,
 // raise and lower blend between tics like the world. The flash follows the
@@ -287,9 +429,15 @@ static void lightScreenQuad(std::vector<Vertex> &quad,const Uniforms &camera,pla
         float at=face?camera.eye[c]+camera.forward[c]*2:camera.eye[c]+camera.forward[c]*10-camera.up[c]*5;
         low[c]=at-12;high[c]=at+12;
     }
+    // The player's own rocket, flying off dead ahead, would flare over the whole
+    // face: the face takes its launch from the muzzle flash alone.
+    auto ownRocket=[&](unsigned n) {
+        const mobj_t *source=lightSources[n];
+        return face&&source&&lightKinds[n]==I_RENDER3D_LIGHT_PROJECTILE&&source->target==player->mo&&Game_ThingRole(source->type)==GAME_THING_ROCKET;
+    };
     for(unsigned n=0;n<flashes.count;++n) {
         const auto &flash=flashes.lights[n];
-        if(!fogOnly[n]&&flash.direction[3]<=0&&doom_flash_reaches_bounds(&flash,low,high))mask[n/32]|=1u<<(n%32);
+        if(!fogOnly[n]&&flash.direction[3]<=0&&!ownRocket(n)&&doom_flash_reaches_bounds(&flash,low,high))mask[n/32]|=1u<<(n%32);
     }
     float towards=std::sqrt(statics.towards[0]*statics.towards[0]+statics.towards[1]*statics.towards[1]+statics.towards[2]*statics.towards[2]);
     if(bakeOnlyActive&&statics.amount>0&&towards>1e-6f) {
@@ -325,8 +473,23 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
         // normals, its painted light taken out.
         bool relit=settings.weaponLighting&&!bright;
         int lump=firstspritelump+sf.lump[0];
-        Image &image=relit?weaponImage(lump):lumpImage(lump,false);
+        // Weapons 2.0: the rocket launcher's flash frames bring the front of the
+        // launcher with them, the plasma rifle's the whole gun; that part is lit
+        // as the rest of the gun is.
+        bool flameOnly=bright&&settings.weaponLighting&&settings.weapons2&&(!strncmp(lumpinfo[lump].name,"MISF",4)||!strncmp(lumpinfo[lump].name,"PLSF",4));
+        Image &image=flameOnly?flashFlame(lump):relit?weaponImage(lump):lumpImage(lump,false);
         float x=units(psp.sx)+shiftX-image.left,y=viewwindowy+viewheight/2.0f-100+units(psp.sy)+shiftY-image.top;
+        if(flameOnly) {
+            Image &barrel=weaponImage(lump,false,false,true);
+            sector_t *sector=player->mo->subsector->sector;
+            float lit=sunLightAt(camera.eye[0],camera.eye[1],sector,flowLightAt(camera.eye[0],camera.eye[1],sector,
+                    seamLightAt(camera.eye[0],camera.eye[1],sector,lighting(sector))));
+            std::vector<Vertex> quad;
+            screenQuad(quad,x/160-1,1-y/100,barrel.width/160.0f,barrel.height/100.0f,0,0,(float)barrel.width,(float)barrel.height,lit,
+                MODE_SCREEN|MODE_SPRITE|MODE_RELIT);
+            lightScreenQuad(quad,camera,player,lit,true,false);
+            draws.push_back({&barrel,std::move(quad)});
+        }
         std::vector<Vertex> weapon;
         float u0=sf.flip[0]?image.width:0,u1=sf.flip[0]?0:image.width;
         float light=bright?1.0f:sunLightAt(camera.eye[0],camera.eye[1],player->mo->subsector->sector,

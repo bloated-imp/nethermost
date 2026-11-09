@@ -401,6 +401,16 @@ void main() {
         if(peak>knee) illumination*=(knee+(ceiling-knee)*(1.0-exp(-(peak-knee)/(ceiling-knee))))/peak;
         specular*=saturate(dot(albedo,vec3(0.299,0.587,0.114))*1.5);
         specular=min(specular,vec3(0.2+0.12*(c.levels.z<0.0?1.0:c.levels.z)));
+        // The shotgun firing (c.weaponSheen: its flash now, 0 on every other gun).
+        // It is painted almost pure black, which no multiplied light can brighten
+        // and the rule above takes the shine off: the blast is added on the
+        // metal itself, strongest where the art is glossy, along its turning
+        // edges and out toward the muzzle at the top of the sprite.
+        if(c.weaponSheen.g>0.0&&c.weaponSheen.w<=0.0) {
+            float toMuzzle=mix(0.35,1.0,smoothstep(0.1,0.9,1.0-vUV.y/float(textureSize(image,0).y)));
+            float turning=1.0-saturate(dot(relit.normal,relit.view));
+            specular+=hueSteps(c.weaponSheen.rgb*toMuzzle*(0.03+0.22*relit.gloss+0.18*turning*turning));
+        }
         // Over a glowing floor the gun is lit from below by that glow alone: an
         // even wash of its color, no reflections to spread over the gun at some
         // angles, and a brighter rim along its edges, weakest along the top,
@@ -425,6 +435,9 @@ void main() {
             illumination=mix(illumination,floorColor*(wash+0.75*rim)+ownWeaponFlash,glow*reached);
             specular=mix(specular,floorColor*0.25*rim,glow*reached);
         }
+        // Never quite to nothing, as the face (below): in the darkest places the
+        // light rounds to 0 and the whole gun would go pure black.
+        illumination=max(illumination,vec3(1.0/16.0));
     }
     // MODE_FACE: painted skin already leans red, so colored light takes it
     // only part of the way (a red room tints the face, not floods it), and

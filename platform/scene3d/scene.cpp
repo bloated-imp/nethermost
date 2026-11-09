@@ -616,8 +616,19 @@ FrameView prepareFrame(int w,int h) {
         if(skytexture!=tintedSky){skyTint=skyColor();horizon=skyHorizon();tintedSky=skytexture;}
         fireSkyTick();
         camera.phobos[3]=fireSkyImage()?1:0;   // the PS1 fire sky, drawn crisp (sky.frag)
-        camera.levels[1]=settings.faceFlash;   // the player's own muzzle flash on the relit face (weapon.glsl)
+        camera.levels[1]=settings.faceFlash*(heldWeaponIs("MISG")?1.5f:1.0f);   // the player's own muzzle flash on the relit face (weapon.glsl); the launcher's has no rocket adding to it (lightScreenQuad)
         camera.levels[3]=settings.weapons2?1.0f:0.0f;   // Weapons 2.0 (weapon.glsl)
+        {   // The blast on the gun's metal (world.frag): the shotgun's, whose black
+            // metal takes no other light; the BFG's and the plasma rifle's are
+            // lights of their own (weapon.glsl). No other gun's.
+            float reach=0,strength=0;std::array<float,3> color={};
+            bool blast=settings.weapons2&&heldWeaponIs("SHTG")&&ownMuzzleFlash(reach,strength,color);
+            float gun[3]={},shape[4]={};
+            bool own=settings.weapons2&&gunBlastLight(gun,shape);
+            for(int c=0;c<3;++c)camera.weaponSheen[c]=blast?color[c]*strength:gun[c];
+            for(int c=0;c<4;++c)camera.bfgLight[c]=shape[c];   // its reach and fade down the gun, and where the muzzle is (weapon.glsl)
+            camera.weaponSheen[3]=own?1.0f:0.0f;   // w: a light of its own (weapon.glsl)
+        }
         camera.levels[2]=settings.weapons2&&settings.weaponMaterials?settings.weaponMetalShine:-1.0f;   // the relit weapon's materials (weapon.glsl)
         for(int c=0;c<3;++c)camera.weaponGlow[c]=weaponGlowColor[c];   // last frame's: the weapon's probe runs after this
         camera.weaponGlow[3]=settings.faceEars?settings.faceEarsStrength:0.0f;   // the relit face's ears (world.frag)

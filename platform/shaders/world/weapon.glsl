@@ -225,6 +225,29 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         specular+=lights[i].color.rgb*amount*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
         specular+=lights[i].color.rgb*amount*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
     }
+    // Weapons 2.0, the BFG charging and firing or the plasma rifle firing
+    // (c.weaponSheen, w 1): the blob or arcs hang ahead of the gun and above it, a light as any other, so that the
+    // art's own shape shows in it: the tops and edges take it, what faces the
+    // player stays darker, the metal's gloss gives hard highlights. Strongest at
+    // the muzzle (c.bfgLight.z, its row of the 200 on the screen, whichever frame
+    // of the gun is showing), and fading with distance from it as the god face's
+    // eyes' light does: c.bfgLight.x how far (1 the 60 rows of gun that show),
+    // y how sharply. In the same 1/16 steps.
+    if(c.weaponSheen.w>0.0&&!face) {
+        float fromMuzzle=length(vec2(vWorld.x*160.0*0.35,max((1.0-vWorld.y)*100.0-c.bfgLight.z,0.0)))/60.0;
+        float near=saturate(1.0-fromMuzzle/max(c.bfgLight.x,0.01));
+        vec3 tint=c.weaponSheen.rgb*round(pow(near,c.bfgLight.y)*16.0)/16.0;
+        vec3 toLight=normalize(c.eye.xyz+36.0*c.forward.xyz+14.0*c.up.xyz-weaponAt);
+        float facing=saturate(dot(n,toLight));
+        float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
+        float lit=max(facing,upper*upperDiffuse*saturate(dot(upperNormal,toLight))*smoothstep(0.1,0.6,dot(toLight,c.forward.xyz)));
+        float mirror,creep=weaponCreep(n,view,toLight,mirror);
+        pulse+=tint*(c.bfgLight.w+1.1*lit+rimGain*rim+1.2*creep);
+        float highlight=pow(saturate(dot(n,normalize(toLight+view))),shininess);
+        specular+=tint*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
+        vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
+        specular+=tint*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
+    }
     // Static-light redistribution may subtract its own baked tint,
     // but must not consume the independent light from the room.
     // Metal shows the room in its reflection more than in a matte fill.

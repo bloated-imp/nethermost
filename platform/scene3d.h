@@ -67,8 +67,8 @@ struct Vertex { float x,y,z,u,v,light; unsigned mode; float red=0,green=0,blue=0
 // farFog, farFogRange: a distance fog as in Turok (DERPINFO farfog): colour (rgb), on (w); clear to range.x, solid from range.y.
 // rush: the fall's smear (rush.cpp, rush.glsl): the point it falls toward in screen uv, homogeneous (xyz), how hard (w).
 // eyes: the player's (eyes.cpp): lids closed (x, 0-1), dark (y, 0-1).
-struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4],weaponGlow[4],faceEyes[4]; };
-static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==784,"Shader buffer layout");
+struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4],weaponGlow[4],faceEyes[4],weaponSheen[4],bfgLight[4]; };
+static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==816,"Shader buffer layout");
 using Flash=doom_flash_t;
 // 63 lights keep the FlashSet uniform block under 4 KB and fit the 64-bit light masks.
 constexpr unsigned maxLights=63;
@@ -105,6 +105,12 @@ struct Settings {
     int bfgMeltDeaths=1; // With bfgMelt: its ordinary deaths too, for the monsters that have no gibs or weren't hit hard enough.
     int weaponMaterials=1; // The relit weapon's hand and other non-metal parts matte, its metal shinier (weapon_lighting.h, weapon.glsl).
     float weaponMetalShine=1; // With weaponMaterials: how much more of the room and of highlights the metal shows (0-3).
+    float bfgLightStrength=1; // The BFG's green light on the gun at the muzzle (0 none, 1 the default).
+    float bfgLightSize=1; // How far down the gun it reaches (1 the gun's height).
+    float bfgLightFalloff=2; // How sharply it fades on the way (1 evenly, higher quickly).
+    float plasmaLightStrength=1; // The same for the plasma rifle's blue light.
+    float plasmaLightSize=1.6f;
+    float plasmaLightFalloff=1.3f;
     float flashBounce=1; // How much of the player's own muzzle flash comes back off nearby walls onto the relit weapon (0-3).
     int ps1PickupFlash=1; // The pickup flash tints only the 3D view, not the HUD or the sky, as on the PlayStation.
     float pickupFlashStrength=1; // How strong that flash is on the 3D view (0-3, 1 the palette's own).
