@@ -1,6 +1,7 @@
 /* The scene's public state, its lifecycle and the per-frame entry points
    (prepareFrame), plus the backend-independent I_Render3D calls. */
 #include "internal.h"
+#include "../ps1_screen.h"
 #include "../rooms.h"
 #include "../shaders/feature_flags.h"
 extern "C" {
@@ -170,6 +171,8 @@ void applySettings() {
     movemomentum=settings.moveMomentum;movebob=settings.moveBob;
     movebobrate=settings.moveBobRate;moveturnramp=settings.moveTurnRamp;
     ps1title=settings.ps1Title!=0;
+    ps1screens=settings.accelerated&&settings.ps1Title&&settings.ps1Menu&&ps1ArtPresent();
+    ps1firespeed=settings.ps1FireSpeed;
     hu_ps1messages=settings.ps1MessagePosition!=0;
     Game_SetPhobos(settings.phobos);
     Game_SetWeather(settings.weather);
@@ -235,7 +238,7 @@ void sceneShutdown() {
     mistVertices.clear();skyVertices.clear();shaftVertices.clear();heatVertices.clear();
     imagesShutdown();mapShutdown();causticsShutdown();clearSurfaceLights();lightsShutdown();glassLightShutdown();exposureShutdown();spaceShutdown();fireSkyShutdown();
     bakeAtlasShutdown();sunShutdown();lightBakeShutdown();clearStaticGrid();indirectShutdown();
-    bfgMeltShutdown();impactsShutdown();bloodShutdown();puddlesShutdown();splashesShutdown();bodyMotionShutdown();glassShutdown();shotLightsShutdown();
+    ps1ScreenShutdown();bfgMeltShutdown();impactsShutdown();bloodShutdown();puddlesShutdown();splashesShutdown();bodyMotionShutdown();glassShutdown();shotLightsShutdown();
     weatherShutdown();wearShutdown();draftsShutdown();blownInShutdown();disturbancesShutdown();groundDentsShutdown();fogShutdown();waterIceShutdown();
 }
 // A new level, or the first after shutdown: each part forgets the last
@@ -661,7 +664,7 @@ std::vector<unsigned> hudPixels(const unsigned *pixels,const unsigned *palette,b
     std::vector<unsigned> overlay(pixels,pixels+SCREENWIDTH*SCREENHEIGHT);
     // A palette other than the one pixels was painted with (PS1 screen flashes).
     if(repaint) for(int i=0;i<SCREENWIDTH*SCREENHEIGHT;++i)overlay[i]=palette[screens[0][i]];
-    if(worldPending) for(int i=0;i<SCREENWIDTH*SCREENHEIGHT;++i)overlay[i]=(overlay[i]&0xffffff)|(unsigned)v_overlaymask[i]<<24;
+    if(worldPending||ps1screen.mode) for(int i=0;i<SCREENWIDTH*SCREENHEIGHT;++i)overlay[i]=(overlay[i]&0xffffff)|(unsigned)v_overlaymask[i]<<24;
     // The relit face (weapon.cpp) stands in for the status bar's own: under
     // it the bar's background (st_stuff.c keeps it in screens[4]) shows, not
     // DOOM's unlit face, which at the screen's resolution would peek out in
@@ -791,7 +794,7 @@ void updateTitle(int width,int height,const char *renderer) {
 
 // Backend-independent parts of the renderer interface.
 using namespace doom3d;
-void I_Render3DStartFrame(void) {worldPending=false;v_overlayactive=false;}
+void I_Render3DStartFrame(void) {worldPending=false;v_overlayactive=false;ps1screen.mode=0;}
 int I_Render3DIsAccelerated(void) {return settings.accelerated;}
 #ifdef DOOM_DEVTOOLS
 extern "C" boolean devInputHeld(event_t *event);   // local dev tools: the player held still (null: the mouse's look)

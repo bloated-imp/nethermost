@@ -619,7 +619,14 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "SKY3), drawn in the WAD's own palette. Off: the painted sky."),
                     check("ps1_title","PS1 title screen",&s.ps1Title,
                         "The title page as on the PlayStation: fire burns up from the bottom of a black screen and the DOOM logo "
-                        "rises into place from behind it. Made from the WAD's own logo and palette. Off: the WAD's title picture.")}}}},
+                        "rises into place from behind it. Off: the WAD's title picture."),
+                    check("ps1_main_menu","PS1 title and menu background",&s.ps1Menu,
+                        "Uses the PlayStation's own title picture and fire, and its brown background behind the menus, when ps1_title.png and "
+                        "ps1_menu.png are in the hud folder. Off, or without them: the title made from the WAD's logo.",
+                        [](const Settings &d){return d.ps1Title!=0;}),
+                    slider("ps1_fire_speed","PS1 title fire speed",&s.ps1FireSpeed,0.25,2,0.05,
+                        "How fast the title's fire burns. 1.00 the PlayStation's own speed, 0.50 half of it.",
+                        [](const Settings &d){return d.ps1Title!=0&&d.ps1Menu!=0;})}}}},
             {"HUD",{
                 {"HUD",{
                     check("status_bar_pack","Status bar pack",&s.statusBarPack,

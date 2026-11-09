@@ -89,6 +89,8 @@ struct Settings {
     int upscale=0; // The render stretched to the window: 0 smooth (bilinear), 1 crisp (nearest), 2 sharp bilinear.
     int aspect=0; // The picture's shape: 0 the window's, 1 a 4:3 box in its middle, black bars beside it (frame.cpp pictureBox).
     int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
+    int ps1Menu=1; // With ps1Title: the PlayStation's title, and its background behind the menus, from the art in hud/ (scene3d/ps1_screen.cpp).
+    float ps1FireSpeed=1; // That title's fire against the PlayStation's 30 updates a second.
     float lightLevel=1; // The sectors' own light levels scaled by this (world.frag, c.levels.x): below 1 the world is darker; lamps, flashes and the flashlight keep theirs.
     float faceFlash=1; // How strongly the player's own muzzle flash lights the relit face (0-2).
     int weapons2=1; // Weapons 2.0: the master switch for the relit weapon's newer lighting. Off: as it was before them.
@@ -281,6 +283,10 @@ extern FogLights fogLights;
 extern float weaponProbe[24];
 // The color of the glowing liquid around the player, for the weapon (weaponDraws).
 extern float weaponGlowColor[3];
+// The PlayStation title and menu background (scene3d/ps1_screen.cpp): whether hud/ has its art, and this frame's picture or null.
+bool ps1ArtPresent();
+const GpuTextureRef *ps1ScreenPicture();
+void ps1ScreenShutdown();
 extern std::vector<LightBlocker> lightBlockers;
 /* Texture keys: wall index >=0, WAD lump = -1-lump. */
 extern std::unordered_map<int,Image> images;

@@ -66,6 +66,8 @@ rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 #include "sounds.h"
 
 #include "m_menu.h"
+#include "f_firetitle.h"
+#include "../platform/ps1_screen.h"
 #include "p_library.h"
 #include "d_deh.h"
 
@@ -979,7 +981,10 @@ void M_MusicVol(int choice)
 //
 void M_DrawMainMenu(void)
 {
-    V_DrawPatchDirect (94,2,0,W_CacheLumpName("M_DOOM",PU_CACHE));
+    if (ps1screens && ps1title && gamestate == GS_DEMOSCREEN)
+	ps1screen.menuLogo = 1;
+    else
+	V_DrawPatchDirect (94,2,0,W_CacheLumpName("M_DOOM",PU_CACHE));
 }
 
 
@@ -1943,9 +1948,24 @@ boolean M_Responder (event_t* ev)
       case KEY_F5:
 	if (currentMenu != &CheatDef)
 	    break;
-	// fall through: F5 also closes the cheat menu
-      case KEY_ESCAPE:
 	currentMenu->lastOn = itemOn;
+	M_ClearMenus ();
+	S_StartSound(NULL,sfx_swtchx);
+	return true;
+
+      case KEY_ESCAPE:
+	// One step back, and out of the top menu.
+	currentMenu->lastOn = itemOn;
+	if (currentMenu->prevMenu)
+	{
+	    currentMenu = currentMenu->prevMenu;
+	    itemOn = currentMenu->lastOn;
+	    S_StartSound(NULL,sfx_swtchn);
+	    return true;
+	}
+	// The PlayStation title's menu has nothing behind it.
+	if (ps1screens && ps1title && gamestate == GS_DEMOSCREEN)
+	    return true;
 	M_ClearMenus ();
 	S_StartSound(NULL,sfx_swtchx);
 	return true;
@@ -2099,6 +2119,9 @@ void M_StartControlPanel (void)
     
     menuactive = 1;
     currentMenu = &MainDef;         // JDC
+    // Out of the PlayStation's fire title: a barrel goes off, as there.
+    if (ps1screens && ps1title && gamestate == GS_DEMOSCREEN)
+	S_StartSound (NULL, sfx_barexp);
     itemOn = currentMenu->lastOn;   // JDC
 }
 

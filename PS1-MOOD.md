@@ -138,6 +138,11 @@ sharply it fades.
 The rampage and grin faces, which the game shows over the god face, take the same
 eyes while you are invincible.
 
+**F4 → Nethermost → PS1 title and menu background:** the PlayStation's title, and its
+brown background behind the PC's menus, from art you put in the `hud` folder:
+`ps1_title.png` and `ps1_menu.png` (both 256x240). The fire is the PlayStation's own
+algorithm and colors; **PS1 title fire speed** slows it.
+
 ## Your Own Sound Effects
 
 Recorded sound effects can stand in for the WAD's, such as a PlayStation

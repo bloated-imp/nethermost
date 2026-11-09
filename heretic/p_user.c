@@ -537,6 +537,10 @@ boolean strafeboost;
 double movewalk = 1, moverun = 1, moveturn = 1, movemomentum = 1, movebob = 1, movebobrate = 1, moveturnramp = 1; // DOOM's movement tuning; Heretic's own movement ignores it
 boolean P_MoveTuning(void) { return false; } // the shared scene asks; Heretic is never tuned
 boolean ps1title; // DOOM's fire title (f_firetitle.c); Heretic's title is its own
+#include "../platform/ps1_screen.h"
+ps1_screen_t ps1screen;
+int ps1screens;
+float ps1firespeed;
 boolean hu_ps1messages; // DOOM's message position; Heretic's messages are its own
 const void *ST_Face(int *x, int *y) { (void)x; (void)y; return NULL; } // DOOM's relit face; Heretic's bar has none
 void ST_UseStatusBarPack(boolean on) { (void)on; } // DOOM's status bar packs; Heretic keeps its own bar

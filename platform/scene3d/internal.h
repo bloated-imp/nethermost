@@ -545,6 +545,8 @@ void shotLightsShutdown();
 void bfgGib(mobj_t *thing);
 unsigned bfgMelt(const mobj_t &thing,float fraction);
 void bfgMeltShutdown();
+// fire_sky.cpp: the PlayStation fire's color for a heat, for its title too.
+const byte *psxFireColor(int heat);
 // Per sector, what its light level keeps after shot-out lamps (1: all).
 extern std::vector<float> shotDim;
 // A sector lost share of its baked floor light to shot-out lamps.

@@ -22,8 +22,16 @@
 #include "z_zone.h"
 
 #include "f_firetitle.h"
+#include "../platform/ps1_screen.h"
+
+double I_GetTimeExact (void);
 
 boolean		ps1title = true;
+ps1_screen_t	ps1screen;
+int		ps1screens;
+float		ps1firespeed = 1;
+
+extern boolean	menuactive;
 
 #define FIRE_LEVELS	37		// heat 0 (none) to 36 (the burning floor)
 #define FIRE_CELL	2		// screen pixels a side: chunky flames that hang together
@@ -76,8 +84,94 @@ static void ColorFire (void)
     colored = true;
 }
 
+// With the PlayStation's art (ps1_screen.h), its title exactly: a 64x128 field
+// of heat, tiled four across from row 116 of its 256x240 screen, over a picture
+// rising from below it a row at a time. Both moved every second vblank, 30 a
+// second. Near the top each even row lowers the bottom row's heat, so the fire
+// burns itself out and leaves the picture. (The PsyDoom reconstruction's ti_main.)
+#define PS1_LOGO_START	250		// SCREEN_H + 10
+#define PS1_MOVES	30		// a second
+static byte	psheat[PS1_FIRE_W*PS1_FIRE_H];
+static float	fireclock, frametime;
+static int	framespermove = 2, framecount;
+static int	logoy;
+static boolean	psready;
+static double	lastdraw = -1;
+
+static void PsFireStart (void)
+{
+    memset (psheat, 0, sizeof(psheat));
+    memset (psheat + (PS1_FIRE_H-1)*PS1_FIRE_W, FIRE_LEVELS-1, PS1_FIRE_W);
+    logoy = PS1_LOGO_START;
+    fireclock = 0;
+    framecount = 0;
+    lastdraw = -1;
+    psready = true;
+}
+
+static void PsFireBurn (void)
+{
+    int		x, y;
+    byte*	bottom = psheat + (PS1_FIRE_H-1)*PS1_FIRE_W;
+
+    if (logoy < 50 && !(logoy & 1) && bottom[0])
+	memset (bottom, bottom[0]-1, PS1_FIRE_W);
+    for (x = 0; x < PS1_FIRE_W; x++)
+	for (y = 1; y < PS1_FIRE_H; y++)
+	{
+	    byte	h = psheat[y*PS1_FIRE_W + x];
+	    unsigned	r;
+
+	    if (!h)
+	    {
+		psheat[(y-1)*PS1_FIRE_W + x] = 0;
+		continue;
+	    }
+	    r = Rand ();
+	    psheat[(y-1)*PS1_FIRE_W + ((x + 1 - (int)(r & 3)) & (PS1_FIRE_W-1))] = (byte)(h - ((r >> 2) & 1));
+	}
+}
+
+// The picture moves in step with the display, not the game's tics: frames here
+// come at the display's rate, and neither 35 tics a second nor a clock running at
+// 30 fall evenly into those at 144 Hz, one move 4 frames after the last and the
+// next 5. So a move comes every whole number of frames, the number nearest 30
+// moves a second (5 at 144 Hz, 28.8 a second; 2 at 60), from the frame time seen.
+static void PsFireAdvance (void)
+{
+    double	now = I_GetTimeExact ();	// in tics
+    float	ideal, off;
+
+    if (lastdraw >= 0)
+    {
+	float seconds = (float)((now - lastdraw)/TICRATE);
+
+	if (seconds > 0 && seconds < 0.1f)	// not a pause or a load
+	    frametime = frametime > 0 ? frametime + (seconds - frametime)*0.05f : seconds;
+    }
+    lastdraw = now;
+    if (frametime <= 0)
+	return;
+    ideal = 1/(PS1_MOVES*frametime);
+    off = ideal - framespermove;
+    if (off > 0.75f || off < -0.75f)	// not on every wobble of the measurement
+    {
+	framespermove = (int)(ideal + 0.5f);
+	if (framespermove < 1)
+	    framespermove = 1;
+    }
+    if (++framecount < framespermove)
+	return;
+    framecount = 0;
+    if (logoy > 0)
+	logoy--;
+    for (fireclock += ps1firespeed; fireclock >= 1; fireclock -= 1)
+	PsFireBurn ();
+}
+
 void F_FireTitleStart (void)
 {
+    PsFireStart ();
     memset (heat, 0, sizeof(heat));
     memset (heat + (FIRE_H-1)*FIRE_W, FIRE_LEVELS-1, FIRE_W);
     tics = 0;
@@ -87,6 +181,10 @@ void F_FireTitleTicker (void)
 {
     int		x, y;
 
+    if (ps1screens)
+    {
+	return;		// moved as it is drawn (PsFireAdvance)
+    }
     tics++;
     for (x = 0; x < FIRE_W; x++)
 	for (y = 1; y < FIRE_H; y++)
@@ -159,6 +257,20 @@ void F_FireTitleDrawer (void)
 {
     int		i;
 
+    if (ps1screens)
+    {
+	if (!psready)
+	    PsFireStart ();
+	PsFireAdvance ();
+	// The picture is the renderer's; the menus drawn over it mark what they cover.
+	ps1screen.mode = menuactive ? 2 : 1;
+	ps1screen.heat = psheat;
+	ps1screen.logoY = logoy;
+	ps1screen.menuLogo = 0;
+	memset (v_overlaymask, 0, sizeof(v_overlaymask));
+	v_overlayactive = true;
+	return;
+    }
     if (!colored)
 	ColorFire ();
     memset (screens[0], colors[0], SCREENWIDTH*SCREENHEIGHT);

@@ -33,6 +33,8 @@ static void pictureBox(int targetWidth,int targetHeight,int &x,int &y,int &w,int
 // screen pixels per render pixel; then PS1 dithering (settings.ps1Dither).
 // This frame's HUD quad and weapon draws (the relit face among them), for drawHudLayer.
 static const std::vector<Vertex> *presentHud;
+// The PlayStation title or menu, this frame (scene3d/ps1_screen.cpp).
+static const GpuTextureRef *ps1Picture;
 static const std::vector<SpriteDraw> *presentWeapons;
 // The melt out of a level. DOOM's melt only has the 320x200 screen to work
 // with, where the 3D view is black and the face is the unlit one. So every
@@ -84,6 +86,15 @@ static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const F
     if(bars) {SDL_GPUViewport box={(float)boxX,(float)boxY,(float)boxW,(float)boxH,0,1};SDL_SetGPUViewport(pass,&box);}
     SDL_BindGPUVertexSamplers(pass,0,&samplers[1],1);   // the bloom, for how much of it the view keeps
     SDL_DrawGPUPrimitives(pass,3,1,0,0);
+    if(ps1Picture&&presentHud) {
+        // Its 256x240 fill a 4:3 picture, as on a television.
+        float w=std::min((float)targetWidth,targetHeight*4.0f/3),h=w*0.75f;
+        SDL_GPUViewport screen={(targetWidth-w)/2,(targetHeight-h)/2,w,h,0,1};SDL_SetGPUViewport(pass,&screen);
+        SDL_BindGPUGraphicsPipeline(pass,settingsPipeline);
+        SDL_GPUTextureSamplerBinding image={gpu(*ps1Picture),nearestClamp};
+        SDL_BindGPUFragmentSamplers(pass,0,&image,1);
+        drawVertices(pass,*presentHud);
+    }
     // The HUD in its place in the box, at the screen's resolution.
     if(presentHud&&presentWeapons) {
         float sx=(float)boxW/width,sy=(float)boxH/height;
@@ -548,6 +559,7 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette,const unsi
     // Transient quads join the frame upload; textures created while drawing
     // go through the upload command buffer, which is submitted first.
     std::vector<SpriteDraw> weapons;if(worldPending)weapons=weaponDraws(camera);
+    ps1Picture=ps1ScreenPicture();
     std::vector<Vertex> hud;screenQuad(hud,-1,1,2,2,0,0,1,1);
     std::vector<Vertex> cross=crosshairVertices(view.worldW,view.worldH);
     std::vector<const std::vector<Vertex>*> transient={&hud,&cross};
