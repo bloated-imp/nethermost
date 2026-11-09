@@ -2137,6 +2137,7 @@ void M_Drawer (void)
     static short	y;
     short		i;
     short		max;
+    short		shift;
     char		string[256];
 
     inhelpscreens = false;
@@ -2179,7 +2180,9 @@ void M_Drawer (void)
     
     // DRAW MENU
     x = currentMenu->x;
-    y = currentMenu->y;
+    // The PlayStation title's menu sits lower, centred under the taller logo.
+    shift = currentMenu == &MainDef && ps1screen.menuLogo ? 16 : 0;
+    y = currentMenu->y + shift;
     max = currentMenu->numitems;
 
     for (i=0;i<max;i++)
@@ -2192,7 +2195,7 @@ void M_Drawer (void)
 
     
     // DRAW SKULL
-    V_DrawPatchDirect(x + SKULLXOFF,currentMenu->y - 5 + itemOn*LINEHEIGHT, 0,
+    V_DrawPatchDirect(x + SKULLXOFF,currentMenu->y + shift - 5 + itemOn*LINEHEIGHT, 0,
 		      W_CacheLumpName(skullName[whichSkull],PU_CACHE));
 
 }

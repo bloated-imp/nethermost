@@ -687,6 +687,12 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "The face on the status bar is relit like the weapon, looking where you look: a lamp to your right lights "
                         "his right cheek, the room ahead lights his face, a muzzle flash flares over it, and in the dark it falls "
                         "into shadow."),
+                    check("face_ears","Ears lit from behind",&s.faceEars,
+                        "A lamp, a fireball or a bright room behind you shows through his ears, red, as light does through thin skin. Only the ears: the rest of the face stays as the room lights it.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0;}),
+                    slider("face_ears_strength","Ears lit from behind: strength",&s.faceEarsStrength,0,2,0.05,
+                        "How strongly the ears show the light behind you. 1.00 the default, 0 none.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0&&d.faceEars!=0;}),
                     check("god_eyes","God face: glowing eyes",&s.godEyes,
                         "While you are invincible the yellow eyes on the relit face light themselves, however dark the room, and throw a little of that light on the face around them. The rampage and grin faces take the same eyes while you are.",
                         [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0;}),

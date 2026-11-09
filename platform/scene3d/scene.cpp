@@ -620,6 +620,7 @@ FrameView prepareFrame(int w,int h) {
         camera.levels[3]=settings.weapons2?1.0f:0.0f;   // Weapons 2.0 (weapon.glsl)
         camera.levels[2]=settings.weapons2&&settings.weaponMaterials?settings.weaponMetalShine:-1.0f;   // the relit weapon's materials (weapon.glsl)
         for(int c=0;c<3;++c)camera.weaponGlow[c]=weaponGlowColor[c];   // last frame's: the weapon's probe runs after this
+        camera.weaponGlow[3]=settings.faceEars?settings.faceEarsStrength:0.0f;   // the relit face's ears (world.frag)
         camera.faceEyes[0]=settings.godEyes?settings.godEyesBright:0;camera.faceEyes[1]=settings.godEyesLight;camera.faceEyes[2]=settings.godEyesSize;camera.faceEyes[3]=settings.godEyesFalloff;   // the god face's eyes (world.frag)
         camera.levels[0]=settings.lightLevel;   // the sectors' light levels scaled (world.frag)
         for(int c=0;c<3;++c)camera.fx[1+c]=skyTint[c];

@@ -447,6 +447,23 @@ void main() {
             illumination=mix(illumination,vec3(c.faceEyes.x),eye);
             specular*=1.0-eye;
         }
+        // F4 Nethermost, Ears lit from behind (c.weaponGlow.w: its strength, 0 off):
+        // the ears (relit.gloss on the face: weapon.cpp) let the light behind the
+        // head through. Flesh passes mostly red, so a white lamp reddens them; a
+        // strongly colored light keeps some of its color, so a green pool greens
+        // them. On a dark head they can only glow so much: bright ears on a head
+        // in shadow look pasted on. In the same 1/16 steps.
+        if(c.weaponGlow.w>0.0&&relit.gloss>0.0) {
+            float top=max(earBacklight.r,max(earBacklight.g,earBacklight.b));
+            if(top>0.0) {
+                vec3 hue=earBacklight/top;
+                float saturated=1.0-min(hue.r,min(hue.g,hue.b));
+                vec3 passed=hue*vec3(1.0,0.12,0.06)*(1.0-0.7*saturated)+hue*hue*saturated;   // squared: painted skin leans red, a green needs pushing to read as green
+                passed/=max(passed.r,max(passed.g,passed.b));
+                float amount=min(max(earBacklight.r,top*0.6)*2.0,0.3+0.9*level)*relit.gloss*c.weaponGlow.w;
+                illumination+=passed*round(amount*16.0)/16.0;
+            }
+        }
     }
     color.rgb=color.rgb*illumination;
     // Light also spills toward its own color by how saturated the texel is,

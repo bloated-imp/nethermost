@@ -94,6 +94,8 @@ struct Settings {
     float lightLevel=1; // The sectors' own light levels scaled by this (world.frag, c.levels.x): below 1 the world is darker; lamps, flashes and the flashlight keep theirs.
     float faceFlash=1; // How strongly the player's own muzzle flash lights the relit face (0-2).
     int weapons2=1; // Weapons 2.0: the master switch for the relit weapon's newer lighting. Off: as it was before them.
+    int faceEars=1; // Light behind the head shows red through the ears of the relit face (weapon.cpp, world.frag).
+    float faceEarsStrength=1; // How strongly they show it (0 none, 1 the default).
     int godEyes=1; // The god face's yellow eyes light themselves on the relit face (weapon.cpp, world.frag).
     float godEyesBright=1.25f; // How bright those eyes are, against their painted colors (1 as painted).
     float godEyesLight=1; // How much of their light falls on the face around them (0 none, 1 the default).

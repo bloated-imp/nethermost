@@ -57,11 +57,47 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false) {
             eyeLight[(size_t)y*w+x]=nearest==0?255:(byte)std::lround((1-nearest/reach)*249);
         }
     }
+    // The face's stripe has no gloss to hold either: R marks the ears, which
+    // light from behind the head shows through (world.frag). Looking ahead they
+    // are the skin at the head's outline around the eye line; turned, the far
+    // ear is a curl of skin set in the hair, and the near one is out of sight.
+    std::vector<byte> ears;
+    if(face) {
+        ears.assign((size_t)w*h,0);
+        bool left=!strncmp(lumpinfo[lump].name,"STFTL",5),right=!strncmp(lumpinfo[lump].name,"STFTR",5);
+        auto skin=[&](int x,int y,int least) {
+            size_t i=(size_t)y*w+x;
+            float r=palette[maps.pixels[2*i]*3],g=palette[maps.pixels[2*i]*3+1],b=palette[maps.pixels[2*i]*3+2];
+            return maps.pixels[2*i+1]&&r>=least&&g>=0.45f*r&&g<r&&b<g;
+        };
+        for(int row=14;row<23;++row) {          // on the screen: the art's own rows differ with its offset
+            int y=row+source.top;
+            if(y<0||y>=h)continue;
+            int first=0,last=w-1;
+            while(first<w&&!maps.pixels[2*((size_t)y*w+first)+1])++first;
+            while(last>=0&&!maps.pixels[2*((size_t)y*w+last)+1])--last;
+            if(first>last)continue;
+            if(left||right) {
+                if(row<16)continue;
+                for(int k=2;k<7;++k) {
+                    int x=left?last-k:first+k;
+                    if(x>=0&&x<w&&skin(x,y,125))ears[(size_t)y*w+x]=200;
+                }
+            }
+            else if(row<20)for(int k=0;k<2;++k) {
+                // Thinnest at the outside and in the middle of its height.
+                static const float along[6]={0.55f,1,1,1,0.85f,0.5f};
+                byte amount=(byte)std::lround((k?150:255)*along[row-14]);
+                if(first+k<w&&skin(first+k,y,95))ears[(size_t)y*w+first+k]=amount;
+                if(last-k>=0&&skin(last-k,y,95))ears[(size_t)y*w+last-k]=amount;
+            }
+        }
+    }
     std::vector<byte> packed((size_t)stride*h*4,0);
     for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
         size_t i=(size_t)y*w+x;byte *art=&packed[((size_t)y*stride+x)*4];
         art[0]=maps.pixels[2*i];art[1]=maps.pixels[2*i+1];art[2]=maps.normals[2*i];art[3]=maps.normals[2*i+1];
-        packed[((size_t)y*stride+w+2+x)*4]=maps.gloss[i];
+        packed[((size_t)y*stride+w+2+x)*4]=face?ears[i]:maps.gloss[i];
         packed[((size_t)y*stride+w+2+x)*4+1]=face?(god?eyeLight[i]:0):maps.metal[i];
         packed[((size_t)y*stride+w+2+x)*4+2]=maps.smooth[2*i];
         packed[((size_t)y*stride+w+2+x)*4+3]=maps.smooth[2*i+1];

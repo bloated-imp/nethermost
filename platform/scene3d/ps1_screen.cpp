@@ -11,7 +11,7 @@ namespace doom3d {
 static constexpr int W=256,H=240;
 static constexpr int fireTop=116,fireTiles=4;
 struct Art {int w=0,h=0;std::vector<unsigned> pixels;explicit operator bool() const {return !pixels.empty();}};
-static Art title,menuBack,logo;
+static Art title,menuBack,logo,titleMark,menuMark;
 static bool tried,complete;
 static GpuTextureRef picture;
 static std::vector<unsigned> frame;
@@ -38,6 +38,7 @@ bool ps1ArtPresent() {
     if(!tried) {
         tried=true;
         title=load("ps1_title.png");menuBack=load("ps1_menu.png");logo=load("ps1_logo.png");
+        titleMark=load("ps1_title_mark.png");menuMark=load("ps1_menu_mark.png");   // the game's name over the logos; optional
         complete=title&&menuBack&&logo;
     }
     return complete;
@@ -50,6 +51,7 @@ static void blit(const Art &art,int x,int y) {
 }
 static void drawTitle() {
     blit(title,0,ps1screen.logoY);
+    blit(titleMark,42,94+ps1screen.logoY);
     if(!ps1screen.heat)return;
     for(int t=0;t<fireTiles;++t)for(int y=0;y<PS1_FIRE_H&&fireTop+y<H;++y)for(int x=0;x<PS1_FIRE_W;++x) {
         int heat=ps1screen.heat[(size_t)y*PS1_FIRE_W+x];
@@ -64,7 +66,10 @@ const GpuTextureRef *ps1ScreenPicture() {
     if(ps1screen.mode==1)drawTitle();
     else {
         blit(menuBack,0,0);
-        if(ps1screen.menuLogo)blit(logo,75,2);   // where the PC's menu has its logo (94,2 of 320x200)
+        if(ps1screen.menuLogo) {
+            blit(logo,75,2);   // where the PC's menu has its logo (94,2 of 320x200)
+            blit(menuMark,85,39);
+        }
     }
     if(!picture)picture=gpuCreateTexture(GpuFormat::RGBA8,W,H,frame.data(),W*4);
     else gpuUpdateTexture(picture,GpuFormat::RGBA8,{{0,0,W,H}},frame.data(),W*4);

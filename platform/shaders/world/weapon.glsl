@@ -38,6 +38,14 @@ vec3 behindGun() {
 // The player's own muzzle flash on the weapon, kept apart for the look over
 // a glowing floor (world.frag), where the room's light is replaced.
 vec3 ownWeaponFlash=vec3(0);
+// The light behind the head, for the ears to let through (world.frag).
+vec3 earBacklight=vec3(0);
+// How much of a light in that direction reaches the ear at across (the face's
+// picture, -1 left to 1 right; its right is the player's left): none from ahead,
+// both ears from straight behind, the nearer one from behind to a side.
+float behindEar(vec3 toLight,float across) {
+    return smoothstep(0.1,0.8,-dot(toLight,c.forward.xyz))*saturate(0.7-sign(across)*dot(toLight,c.right.xyz));
+}
 // The weapon's surroundings toward a direction in the view's frame (x
 // right, y up, z ahead), blended as an ambient cube.
 vec3 weaponSurroundings(vec3 d) {
@@ -155,6 +163,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         specular+=pulse*statics.w*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
         specular+=pulse*statics.w*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
         float lit=max(facing,upper*upperDiffuse*saturate(dot(upperNormal,toLight))*smoothstep(0.1,0.6,dot(toLight,c.forward.xyz)));
+        if(face) earBacklight+=pulse*statics.w*behindEar(toLight,w.across);
         pulse*=mix(1.0,0.25+1.0*lit+rimGain*rim+1.2*creep,statics.w);
     }
     // The room around it, even with no light near: a fill from each
@@ -198,6 +207,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         // flooding the whole of it.
         else if(c.levels.w>0.0&&(vMode&MODE_FACE)==0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
             {toLight=normalize(c.eye.xyz+48.0*c.forward.xyz-6.0*c.up.xyz-weaponAt);ownWeaponFlash+=lights[i].color.rgb*amount*0.7;}
+        if(face) earBacklight+=lights[i].color.rgb*amount*behindEar(toLight,w.across);
         float facing=saturate(dot(n,toLight));
         float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
         // A static light's light already arrives in the tint, and a
@@ -219,6 +229,12 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     // but must not consume the independent light from the room.
     // Metal shows the room in its reflection more than in a matte fill.
     pulse=max(pulse,vec3(0))+environment*surroundings*(1.0-0.25*min(shine,3.0));
+    // A room brighter behind the player than ahead backlights the head too; an
+    // evenly lit one doesn't.
+    if(face) {
+        const vec3 luma=vec3(0.299,0.587,0.114);
+        earBacklight+=roomLevel()*weaponProbe[1].rgb*0.7*smoothstep(0.05,0.4,dot(weaponProbe[1].rgb-weaponProbe[0].rgb,luma));
+    }
     // The player's own muzzle flash back off the walls around (weaponProbe's
     // w): soft over the side we see, a little more at its turning edges.
     if(!face) {
