@@ -193,6 +193,7 @@ void applySettings() {
     ST_UseMutedRedText(settings.mutedRedText!=0);
     I_SetPsxReverb(settings.ps1Reverb);
     I_SetAlternativeComputerSounds(settings.alternativeComputerSounds);
+    Game_SetRandomPitch(settings.randomPitch);
     I_AmbienceShowGlass(settings.accelerated&&settings.windowGlass);
     I_SetMusicDevice(settings.musicDevice);
     // The authored episode's mood is baked into the sun, lamps, bounce and
