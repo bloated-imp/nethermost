@@ -16,6 +16,8 @@ struct doom_weapon_maps {
     std::vector<unsigned char> pixels;  /* Palette index and coverage pairs, de-lit. */
     std::vector<unsigned char> normals; /* x and y (texture down) as unsigned bytes. */
     std::vector<unsigned char> gloss;   /* 0-255 per pixel. */
+    std::vector<unsigned char> metal;   /* 0-255 per pixel: grey metal against skin, wood and cloth. */
+    std::vector<unsigned char> smooth;  /* x and y like normals, from the silhouette alone: no painted detail to turn into grit. */
 };
 
 /* pixels: palette index and coverage pairs; palette: PLAYPAL RGB. */
@@ -26,6 +28,8 @@ inline doom_weapon_maps doom_weapon_delight(int w, int h, const unsigned char *p
     maps.pixels.assign(pixels, pixels + n * 2);
     maps.normals.assign(n * 2, 128);
     maps.gloss.assign(n, 0);
+    maps.metal.assign(n, 0);
+    maps.smooth.assign(n * 2, 128);
     auto opaque = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && pixels[((size_t)y * w + x) * 2 + 1]; };
     auto rgb = [&](int index, int c) { return palette[index * 3 + c] / 255.0f; };
     auto luma = [&](int index) { return 0.299f * rgb(index, 0) + 0.587f * rgb(index, 1) + 0.114f * rgb(index, 2); };
@@ -172,6 +176,10 @@ inline doom_weapon_maps doom_weapon_delight(int w, int h, const unsigned char *p
         float length = std::sqrt(gx * gx + gy * gy + 1);
         maps.normals[i * 2] = (unsigned char)std::lround((-gx / length * 0.5f + 0.5f) * 255);
         maps.normals[i * 2 + 1] = (unsigned char)std::lround((-gy / length * 0.5f + 0.5f) * 255);
+        float rx = (dome(x + 1, y) - dome(x - 1, y)) * 0.5f * radius, ry = (dome(x, y + 1) - dome(x, y - 1)) * 0.5f * radius;
+        float roundness = std::sqrt(rx * rx + ry * ry + 1);
+        maps.smooth[i * 2] = (unsigned char)std::lround((-rx / roundness * 0.5f + 0.5f) * 255);
+        maps.smooth[i * 2 + 1] = (unsigned char)std::lround((-ry / roundness * 0.5f + 0.5f) * 255);
         /* Gloss: the sheen the ramp lost around here, and grey metal; skin
            and other saturated ramps keep a third of their painted sheen's. */
         int index = pixels[i * 2];
@@ -181,6 +189,34 @@ inline doom_weapon_maps doom_weapon_delight(int w, int h, const unsigned char *p
         float painted = std::clamp(glossRamp[i] * 10.0f + removed[i] * 2.0f, 0.0f, 1.0f) * (0.35f + 0.65f * grey);
         float gloss = std::max(painted, grey * 0.5f);
         maps.gloss[i] = (unsigned char)std::lround(gloss * 255);
+    }
+    /* Metal: what is painted on the grey ramps. Skin and wood sit on saturated
+       ramps. Near-black texels (outlines, crevices) have no colour to go by and
+       take the material around them; the rest lean on it a little, so one odd
+       texel does not become a speck of another material. */
+    std::vector<float> known(n, -1.0f);
+    for (size_t i = 0; i < n; ++i) if (pixels[i * 2 + 1]) {
+        int index = pixels[i * 2];
+        float hi = std::max({rgb(index, 0), rgb(index, 1), rgb(index, 2)});
+        float lo = std::min({rgb(index, 0), rgb(index, 1), rgb(index, 2)});
+        if (hi <= 0.05f) continue;
+        float t = std::clamp(((1 - std::clamp((hi - lo) / hi * 2.5f, 0.0f, 1.0f)) - 0.45f) / 0.4f, 0.0f, 1.0f);
+        known[i] = t * t * (3 - 2 * t);
+    }
+    for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
+        if (!opaque(x, y)) continue;
+        size_t i = (size_t)y * w + x;
+        static const float binomial[5] = {1, 4, 6, 4, 1};
+        float sum = 0, weight = 0;
+        for (int j = -2; j <= 2; ++j) for (int k = -2; k <= 2; ++k) {
+            if (x + k < 0 || y + j < 0 || x + k >= w || y + j >= h) continue;
+            float value = known[(size_t)(y + j) * w + x + k];
+            if (value < 0) continue;
+            float s = binomial[j + 2] * binomial[k + 2];
+            sum += value * s; weight += s;
+        }
+        float around = weight > 0 ? sum / weight : 0;
+        maps.metal[i] = (unsigned char)std::lround((known[i] < 0 ? around : 0.5f * known[i] + 0.5f * around) * 255);
     }
     return maps;
 }

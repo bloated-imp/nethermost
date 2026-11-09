@@ -13,14 +13,37 @@ float weaponCreep(vec3 n,vec3 view,vec3 toLight,out float mirror) {
     return ahead*ahead*around*(0.1+0.9*edge*edge);
 }
 // F4 Light level (c.levels.x) on what the weapon sees around it: the room
-// it reflects is as much darker as the room itself.
-float roomLevel() {return c.levels.x>0.0?c.levels.x:1.0;}
+// it reflects is as much darker as the room itself. Weapons 2.0 off, the
+// weapon is DERP's, which no Light level reaches (the face still follows it).
+float roomLevel() {return c.levels.x>0.0&&(c.levels.w>0.0||(vMode&MODE_FACE)!=0u)?c.levels.x:1.0;}
+// c.levels.w: F4 Nethermost, Weapons 2.0.
+// Weapons 2.0: how far the weapon takes the look it has over a glowing floor,
+// 0 anywhere else (weaponProbe[5].w: how much of the floor around glows).
+// Everywhere else its shape and shine come from the painted detail as well,
+// which is what makes a light seem to move over it.
+float overGlow() {return c.levels.w>0.0&&(vMode&MODE_FACE)==0u?smoothstep(0.0,0.6,weaponProbe[5].w):0.0;}
+// A colour in the colormaps' 1/16 steps, stepped by its brightest channel so
+// it keeps its hue. Stepped channel by channel, a slightly warm light has
+// red round up while green and blue round down: pink on grey metal.
+vec3 hueSteps(vec3 color) {
+    if(c.levels.w<=0.0) return round(color*16.0)/16.0;
+    float top=max(color.r,max(color.g,color.b));
+    return top>0.0?color*(round(top*16.0)/16.0)/top:vec3(0);
+}
+// Weapons 2.0: over a glowing floor what is behind the gun is the player
+// holding it, who hides the glow behind him: a dim, colorless stand-in.
+vec3 behindGun() {
+    return mix(weaponProbe[1].rgb,vec3(dot(weaponProbe[1].rgb,vec3(0.299,0.587,0.114)))*0.6,overGlow());
+}
+// The player's own muzzle flash on the weapon, kept apart for the look over
+// a glowing floor (world.frag), where the room's light is replaced.
+vec3 ownWeaponFlash=vec3(0);
 // The weapon's surroundings toward a direction in the view's frame (x
 // right, y up, z ahead), blended as an ambient cube.
 vec3 weaponSurroundings(vec3 d) {
     vec3 w=d*d;
     return roomLevel()*(w.x*(d.x>0.0?weaponProbe[2]:weaponProbe[3]).rgb+w.y*(d.y>0.0?weaponProbe[4]:weaponProbe[5]).rgb+
-           w.z*(d.z>0.0?weaponProbe[0]:weaponProbe[1]).rgb);
+           w.z*(d.z>0.0?weaponProbe[0].rgb:behindGun()));
 }
 // MODE_SCREEN|MODE_RELIT: the relit weapon (weaponDraws, weapon_lighting.h). Its
 // painted light was taken out at load; its normals face the viewer, and
@@ -30,14 +53,18 @@ vec3 weaponSurroundings(vec3 d) {
 // that turn away from the eye darken, in the colormaps' 1/16 steps.
 // Returns the weapon's normal, the point it stands at, the direction to the
 // eye and its gloss, and shades light by its normal.
-struct Weapon { vec3 normal,at,view; float gloss; };
+// across: where along the sprite's width, -1 its left on the screen to 1 its right.
+struct Weapon { vec3 normal,at,view; float gloss,metal,fromBelow,across; };
 Weapon weaponSurface(inout float light) {
-    vec3 weaponNormal,weaponAt,weaponView;float weaponGloss;
+    vec3 weaponNormal,weaponAt,weaponView;vec4 weaponMaterial;
     ivec2 size=textureSize(image,0),p=clamp(ivec2(floor(vUV)),ivec2(0),size-1);
     int width=(size.x-2)/2;
-    vec2 packed=texelFetch(image,p,0).ba*2.0-1.0;
+    weaponMaterial=texelFetch(image,ivec2(min(p.x,width-1)+width+2,p.y),0);
+    // Over a glowing floor (overGlow) the shape comes from the silhouette alone,
+    // for the rim light: read from the painted shading as well, that bright
+    // a light turns the weapon's detail to grit.
+    vec2 packed=mix(texelFetch(image,p,0).ba,weaponMaterial.ba,overGlow())*2.0-1.0;
     if((vMode&MODE_FLIPPED)!=0u) packed.x=-packed.x;
-    weaponGloss=texelFetch(image,ivec2(min(p.x,width-1)+width+2,p.y),0).r;
     weaponNormal=normalize(c.right.xyz*packed.x-c.up.xyz*packed.y-c.forward.xyz*sqrt(saturate(1.0-dot(packed,packed))));
     weaponAt=c.eye.xyz+10.0*(c.forward.xyz+c.right.xyz*vWorld.x/c.projection.x+c.up.xyz*vWorld.y/c.projection.y);
     weaponView=normalize(c.eye.xyz-weaponAt);
@@ -57,7 +84,17 @@ Weapon weaponSurface(inout float light) {
     // texels turned furthest down and away (the jaw's) would otherwise round
     // to nothing, pure black beside faintly lit neighbours.
     if((vMode&MODE_FACE)!=0u&&lit>0.0) light=max(light,1.0/16.0);
-    return Weapon(weaponNormal,weaponAt,weaponView,weaponGloss);
+    // Weapons 2.0: standing over a glowing floor, the room's colored light comes
+    // up from below. It cannot reach what faces up, and most of what we see
+    // of a held gun is its top and back (weaponProbe[5].w: how much of the
+    // floor below glows).
+    float fromBelow=c.levels.w>0.0&&(vMode&MODE_FACE)==0u?weaponProbe[5].w*smoothstep(-0.6,0.2,dot(weaponNormal,c.up.xyz)):0.0;
+    // Over a glowing floor metal shines evenly, not in the speckles of where
+    // the art had highlights.
+    float gloss=c.levels.z>=0.0?mix(weaponMaterial.x,mix(weaponMaterial.x,0.55*weaponMaterial.y,0.8),overGlow()):weaponMaterial.x;
+    float across=(float(min(p.x,width-1))+0.5)/float(width)*2.0-1.0;
+    if((vMode&MODE_FLIPPED)!=0u) across=-across;
+    return Weapon(weaponNormal,weaponAt,weaponView,gloss,weaponMaterial.y,fromBelow,across);
 }
 // Lights around the player on the relit weapon (w from weaponSurface),
 // added to pulse and specular; light is its shaded sector light.
@@ -75,14 +112,25 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     // only a faint broad sheen from each light (face) and a little of the
     // room at its grazing edges.
     bool face=(vMode&MODE_FACE)!=0u;
-    if(face) weaponGloss=0.0;
+    // F4 Nethermost, Separate skin and metal (c.levels.z, the metal's shine;
+    // below 0 off): what is not metal, a hand or a wooden stock, is matte as
+    // the face is, and the metal takes more of the room and sharper highlights.
+    float skin=face?1.0:c.levels.z<0.0?0.0:1.0-w.metal;
+    float shine=face||c.levels.z<0.0?0.0:w.metal*c.levels.z,polish=1.0+0.6*shine;
+    weaponGloss*=1.0-skin;
     // A bright rim where the outline turns to a light reads as wet on skin.
-    float rimGain=face?0.6:1.6;
+    float rimGain=mix(1.6,0.6,skin);
+    // The room's tint arrives as one color for the whole gun: the part of it
+    // from below weakens, keeping its color (world.frag does the same to the lamp tint).
+    if(w.fromBelow>0.0) pulse*=1.0-0.5*w.fromBelow;
     float shininess=10.0+30.0*weaponGloss;
     // The sprite's rounded normals describe its camera-facing skin,
     // not the top of the barrel. Approximate that upper plane for
     // broad metal highlights, fading it out on downward-facing parts.
-    float upper=smoothstep(-0.25,0.25,dot(n,c.up.xyz));
+    // Over a glowing floor only the gun's real upper edge. With normals from
+    // the silhouette the broad middle faces the eye, and would take half of
+    // this as one flat pale patch.
+    float upper=mix(smoothstep(-0.25,0.25,dot(n,c.up.xyz)),smoothstep(0.05,0.5,dot(n,c.up.xyz)),overGlow());
     vec3 upperNormal=normalize(c.up.xyz+0.35*n);
     float upperShininess=8.0+16.0*weaponGloss;
     // That upper plane also takes light: a lamp ahead and above falls
@@ -102,10 +150,10 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
         float highlight=pow(saturate(dot(n,normalize(toLight+view))),shininess),mirror;
         float creep=weaponCreep(n,view,toLight,mirror);
-        specular+=pulse*statics.w*weaponGloss*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
+        specular+=pulse*statics.w*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
         specular+=pulse*statics.w*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
-        if(face) specular+=pulse*statics.w*0.12*pow(saturate(dot(n,halfDirection)),4.0);
+        specular+=pulse*statics.w*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
         float lit=max(facing,upper*upperDiffuse*saturate(dot(upperNormal,toLight))*smoothstep(0.1,0.6,dot(toLight,c.forward.xyz)));
         pulse*=mix(1.0,0.25+1.0*lit+rimGain*rim+1.2*creep,statics.w);
     }
@@ -117,14 +165,16 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     const float surroundings=0.7;
     mat3 frame=transpose(mat3(c.right.xyz,c.up.xyz,c.forward.xyz));
     vec3 environment=weaponSurroundings(frame*n)*0.3;
-    float edge=1.0-saturate(dot(n,view)),base=0.02+0.12*weaponGloss;
+    float edge=1.0-saturate(dot(n,view)),base=0.02+0.12*weaponGloss+shine*(0.18+0.22*weaponGloss);
     vec3 mirrored=weaponSurroundings(frame*reflect(-view,n))*(base+(1.0-base)*pow(edge,4.0));
-    specular+=round(mirrored*0.8*surroundings*(face?0.3:1.0)*16.0)/16.0;
+    specular+=hueSteps(mirrored*0.8*surroundings*mix(1.0,0.3,skin));
     // Like a glossy floor, the upper metal reflects a bright panel
     // ahead. The ambient cube represents a broad source, rather than
     // a sharp point highlight. Keep the reflection in palette steps.
-    vec3 upperReflection=weaponSurroundings(frame*reflect(-view,upperNormal));
-    specular+=round(upperReflection*weaponGloss*upper*0.8*surroundings*16.0)/16.0;
+    // Over a glowing floor the top of the gun mirrors what is above it, not
+    // the glow ahead.
+    vec3 upperReflection=weaponSurroundings(normalize(mix(frame*reflect(-view,upperNormal),normalize(vec3(0.0,1.0,0.3)+0.25*(frame*n)),overGlow())));
+    specular+=hueSteps(upperReflection*weaponGloss*polish*upper*0.8*surroundings);
     float aheadMirror;
     environment+=roomLevel()*weaponProbe[0].rgb*(0.12+0.6*weaponCreep(n,view,c.forward.xyz,aheadMirror));
     specular+=roomLevel()*weaponProbe[0].rgb*weaponGloss*aheadMirror*0.4*surroundings;
@@ -146,8 +196,8 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         // muzzle, ahead of the gun, not from inside it at the player's
         // middle: it rims and creeps over the gun from in front rather than
         // flooding the whole of it.
-        else if((vMode&MODE_FACE)==0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
-            toLight=normalize(c.eye.xyz+48.0*c.forward.xyz-6.0*c.up.xyz-weaponAt);
+        else if(c.levels.w>0.0&&(vMode&MODE_FACE)==0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
+            {toLight=normalize(c.eye.xyz+48.0*c.forward.xyz-6.0*c.up.xyz-weaponAt);ownWeaponFlash+=lights[i].color.rgb*amount*0.7;}
         float facing=saturate(dot(n,toLight));
         float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
         // A static light's light already arrives in the tint, and a
@@ -160,15 +210,19 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         float highlight=pow(saturate(dot(n,normalize(toLight+view))),shininess),mirror;
         // Looking toward the light, it also spills over the weapon.
         pulse+=lights[i].color.rgb*amount*1.2*weaponCreep(n,view,toLight,mirror);
-        specular+=lights[i].color.rgb*amount*weaponGloss*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
+        specular+=lights[i].color.rgb*amount*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
         specular+=lights[i].color.rgb*amount*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
-        if(face) specular+=lights[i].color.rgb*amount*0.12*pow(saturate(dot(n,halfDirection)),4.0);
+        specular+=lights[i].color.rgb*amount*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
     }
     // Static-light redistribution may subtract its own baked tint,
     // but must not consume the independent light from the room.
-    pulse=max(pulse,vec3(0))+environment*surroundings;
+    // Metal shows the room in its reflection more than in a matte fill.
+    pulse=max(pulse,vec3(0))+environment*surroundings*(1.0-0.25*min(shine,3.0));
     // The player's own muzzle flash back off the walls around (weaponProbe's
     // w): soft over the side we see, a little more at its turning edges.
-    if(!face) pulse+=vec3(weaponProbe[0].w,weaponProbe[1].w,weaponProbe[2].w)*(0.6+0.4*edge);
+    if(!face) {
+        vec3 bounced=vec3(weaponProbe[0].w,weaponProbe[1].w,weaponProbe[2].w)*(0.6+0.4*edge);
+        pulse+=bounced;ownWeaponFlash+=bounced;
+    }
 }

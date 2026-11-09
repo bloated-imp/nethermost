@@ -295,6 +295,7 @@ if(DOOM_BUILD_SDL)
         platform/scene3d/bake_lights.cpp
         platform/scene3d/bake_sun.cpp
         platform/scene3d/glass_light.cpp
+        platform/scene3d/bfg_melt.cpp
         platform/scene3d/blood.cpp
         platform/scene3d/spray.cpp
         platform/scene3d/body_motion.cpp

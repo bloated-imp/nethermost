@@ -541,6 +541,10 @@ float valueNoise(float x,float y,float cell,uint32_t seed);
 
 // shot_lights.cpp
 void shotLightsShutdown();
+// bfg_melt.cpp: a thing the BFG killed, and how green it is now (0-255, MODE_BFG_MELT).
+void bfgGib(mobj_t *thing);
+unsigned bfgMelt(const mobj_t &thing,float fraction);
+void bfgMeltShutdown();
 // Per sector, what its light level keeps after shot-out lamps (1: all).
 extern std::vector<float> shotDim;
 // A sector lost share of its baked floor light to shot-out lamps.

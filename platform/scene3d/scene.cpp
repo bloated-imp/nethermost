@@ -160,6 +160,7 @@ void applySettings() {
     R_PlaneImpact=settings.accelerated?planeImpact:nullptr;
     R_ShotPassed=settings.accelerated?glassShot:nullptr;
     R_GlassStruck=settings.accelerated?glassStruck:nullptr;
+    R_BfgGib=settings.accelerated&&settings.bfgMelt?bfgGib:nullptr;
     R_RainedIn=settings.accelerated?rainedIn:nullptr;
     freeaim=settings.accelerated&&settings.look;
     classicaim=settings.classicAim!=0;
@@ -228,13 +229,13 @@ void sceneInit(SDL_Window *window) {
 }
 void sceneShutdown() {
     stopRelight();
-    R_AcceleratedView=nullptr;R_BeforeTic=nullptr;R_MuzzleFlash=nullptr;R_WallImpact=nullptr;R_BloodHit=nullptr;R_BloodSpilled=nullptr;R_DamageHit=nullptr;R_PlaneImpact=nullptr;R_ShotPassed=nullptr;R_GlassStruck=nullptr;R_RainedIn=nullptr;r_uncapped=0;v_overlayactive=0;
+    R_AcceleratedView=nullptr;R_BeforeTic=nullptr;R_MuzzleFlash=nullptr;R_WallImpact=nullptr;R_BloodHit=nullptr;R_BloodSpilled=nullptr;R_DamageHit=nullptr;R_PlaneImpact=nullptr;R_ShotPassed=nullptr;R_GlassStruck=nullptr;R_BfgGib=nullptr;R_RainedIn=nullptr;r_uncapped=0;v_overlayactive=0;
     lightBlockers.clear();flashes={};oldThings.clear();oldHeights.clear();heldThings.clear();heldHeights.clear();
     batches.clear();shadowBatches.clear();decalBatches.clear();mirrorBatches.clear();particleVertices.clear();glowVertices.clear();
     mistVertices.clear();skyVertices.clear();shaftVertices.clear();heatVertices.clear();
     imagesShutdown();mapShutdown();causticsShutdown();clearSurfaceLights();lightsShutdown();glassLightShutdown();exposureShutdown();spaceShutdown();fireSkyShutdown();
     bakeAtlasShutdown();sunShutdown();lightBakeShutdown();clearStaticGrid();indirectShutdown();
-    impactsShutdown();bloodShutdown();puddlesShutdown();splashesShutdown();bodyMotionShutdown();glassShutdown();shotLightsShutdown();
+    bfgMeltShutdown();impactsShutdown();bloodShutdown();puddlesShutdown();splashesShutdown();bodyMotionShutdown();glassShutdown();shotLightsShutdown();
     weatherShutdown();wearShutdown();draftsShutdown();blownInShutdown();disturbancesShutdown();groundDentsShutdown();fogShutdown();waterIceShutdown();
 }
 // A new level, or the first after shutdown: each part forgets the last
@@ -242,7 +243,7 @@ void sceneShutdown() {
 static void startLevel() {
     loadingStage(LoadStage::Map);
     stopRelight();
-    batches.clear();shadowBatches.clear();mirrorBatches.clear();clearSurfaceLights();shotLightsShutdown();
+    batches.clear();shadowBatches.clear();mirrorBatches.clear();clearSurfaceLights();shotLightsShutdown();bfgMeltShutdown();
     bakeAtlasNewLevel();sunNewLevel();lightBakeNewLevel();clearStaticGrid();indirectNewLevel();
     oldThings.clear();oldHeights.clear();heldThings.clear();heldHeights.clear();ticSaved=false;
     Rooms_Build();   // what the level's spaces are (rooms.c), before anything reads them
@@ -613,6 +614,10 @@ FrameView prepareFrame(int w,int h) {
         fireSkyTick();
         camera.phobos[3]=fireSkyImage()?1:0;   // the PS1 fire sky, drawn crisp (sky.frag)
         camera.levels[1]=settings.faceFlash;   // the player's own muzzle flash on the relit face (weapon.glsl)
+        camera.levels[3]=settings.weapons2?1.0f:0.0f;   // Weapons 2.0 (weapon.glsl)
+        camera.levels[2]=settings.weapons2&&settings.weaponMaterials?settings.weaponMetalShine:-1.0f;   // the relit weapon's materials (weapon.glsl)
+        for(int c=0;c<3;++c)camera.weaponGlow[c]=weaponGlowColor[c];   // last frame's: the weapon's probe runs after this
+        camera.faceEyes[0]=settings.godEyes?settings.godEyesBright:0;camera.faceEyes[1]=settings.godEyesLight;camera.faceEyes[2]=settings.godEyesSize;camera.faceEyes[3]=settings.godEyesFalloff;   // the god face's eyes (world.frag)
         camera.levels[0]=settings.lightLevel;   // the sectors' light levels scaled (world.frag)
         for(int c=0;c<3;++c)camera.fx[1+c]=skyTint[c];
         // Outdoor haze in the sky's horizon color (Game_Sun), with the fog.

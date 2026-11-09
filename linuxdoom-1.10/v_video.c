@@ -483,3 +483,4 @@ void V_Init (void)
 /* Coverage for compositing the classic HUD/menu over a native 3D view. */
 byte v_overlaymask[SCREENWIDTH * SCREENHEIGHT];
 boolean v_overlayactive;
+int *v_meltcolumns; // how far each 2-pixel column has fallen while the melt runs, else null (f_wipe.c)

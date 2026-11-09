@@ -35,6 +35,8 @@
 #define MODE_WOUND_STAIN     (1u<<22) // blend blood into the source paint instead of replacing it
 // Screen sprites only, with MODE_RELIT: the status bar's face, its normals facing ahead (weapon.glsl).
 #define MODE_FACE            (1u<<23)
+// World sprites only: a monster the BFG blew apart; MODE_FROST_SHIFT holds how green it still is (bfg_melt.cpp).
+#define MODE_BFG_MELT        (1u<<23)
 // Monster sprites only (not soft ones): Phobos' rime on a body left in vacuum, 0-255 (decompression.cpp).
 #define MODE_FROST_SHIFT     24
 

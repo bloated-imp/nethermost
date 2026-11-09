@@ -166,6 +166,8 @@ wipe_initMelt
 	else if (y[i] == -16) y[i] = -15;
     }
 
+    v_meltcolumns = y;
+
     return 0;
 }
 
@@ -230,6 +232,7 @@ wipe_exitMelt
   int	height,
   int	ticks )
 {
+    v_meltcolumns = NULL;
     Z_Free(y);
     return 0;
 }

@@ -27,6 +27,12 @@ vec2 sharpen(vec2 uv,vec2 width) {
     vec2 p=uv-0.5,q=floor(p),w=clamp(width,vec2(1e-3),vec2(1.0))*0.5;
     return q+smoothstep(0.5-w,0.5+w,p-q)+0.5;
 }
+// BFG melt (scene3d/bfg_melt.cpp): paint toward the projectile's green, by
+// how bright it was so the drawing still reads; the hottest moments lift it.
+vec3 bfgMelted(vec3 paint,float amount) {
+    float bright=dot(paint,vec3(0.299,0.587,0.114));
+    return mix(paint,vec3(0.25,1.0,0.25)*(0.45+1.1*bright),amount)+vec3(0.5*bright*smoothstep(0.7,1.0,amount));
+}
 // Glowing eyes (platform/sprite_eyes.h, stamped in scene3d/images.cpp) sit
 // in sprite normals no silhouette has: x all the way right, y over halfway
 // down. Returns the glow: 1 at the painted spot, 2/3 where it spread.

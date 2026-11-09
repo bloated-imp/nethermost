@@ -222,7 +222,7 @@ void main() {
     // aside), then mottled over the rest; thin, so the paint still shows through it.
     // Under nukage rain (c.weatherTint) the same bits are its soak instead: a translucent
     // darker green running down from the top in mottled texels.
-    uint frostBits=sprite&&(vMode&(MODE_SCREEN|MODE_SOFT|MODE_BLOOD))==0u?(vMode>>MODE_FROST_SHIFT)&255u:0u;
+    uint frostBits=sprite&&(vMode&(MODE_SCREEN|MODE_SOFT|MODE_BLOOD|MODE_BFG_MELT))==0u?(vMode>>MODE_FROST_SHIFT)&255u:0u;
     if(frostBits>0u&&c.weatherTint.w>0.0) {
         float soak=float(frostBits)/255.0;
         ivec2 texel=ivec2(floor(uv));
@@ -266,7 +266,9 @@ void main() {
     // Weapon and face take the sector's light too, so they darken with it;
     // fullbright frames (projectiles, torches, the gun firing) never do.
     bool fullbright=sprite&&(vLampTint>>24)==0u;   // fullbrightTint (scene3d.h)
-    float levelScale=fullbright||c.levels.x<=0.0?1.0:c.levels.x;
+    // Weapons 2.0 off, the weapon is DERP's: no Light level.
+    bool plainWeapon=sprite&&c.levels.w<=0.0&&(vMode&(MODE_SCREEN|MODE_FACE))==MODE_SCREEN;
+    float levelScale=fullbright||plainWeapon||c.levels.x<=0.0?1.0:c.levels.x;
     float light=lit.light*levelScale;
     // Weather and wear (world/wear.glsl): streaks, wet ground and snow.
     Wear wear=Wear(0.0,0.0,false,0.0,0.0,0.0,0.0,0.0,false,0.0,vec2(0.0));
@@ -280,8 +282,8 @@ void main() {
         grounding=round(mix(1.0,mix(0.72,1.0,smoothstep(0.0,24.0,vSun.y)),vSun.x)*16.0)/16.0;
     light*=grounding;
     // MODE_SCREEN|MODE_RELIT: the relit weapon (weapon.glsl).
-    bool weapon=sprite&&(vMode&(MODE_SCREEN|MODE_RELIT))==(MODE_SCREEN|MODE_RELIT)&&c.effects.z==0.0;
-    Weapon relit=Weapon(vec3(0),vec3(0),vec3(0),0.0);
+    bool weapon=sprite&&(vMode&(MODE_SCREEN|MODE_RELIT))==(MODE_SCREEN|MODE_RELIT)&&(c.effects.z==0.0||(vMode&MODE_FACE)!=0u);   // the face stays itself under the invulnerability's colors
+    Weapon relit=Weapon(vec3(0),vec3(0),vec3(0),0.0,0.0,0.0,0.0);
     if(weapon) relit=weaponSurface(light);
     // Preserve the sprite's painted shading with one RGB increment for the
     // whole billboard; world surfaces evaluate colored lighting per pixel.
@@ -370,7 +372,60 @@ void main() {
         else if(damp>0.0) color.rgb*=mix(vec3(1),vec3(0.55)*mix(vec3(1),stain,0.25),damp);
     }
     color.rgb=applyWear(color.rgb,wear,emission);
+    // BFG melt (bfg_melt.cpp): gibs in the projectile's green, lit by their own heat.
+    if(sprite&&(vMode&(MODE_BFG_MELT|MODE_SCREEN))==MODE_BFG_MELT&&c.effects.z==0.0) {
+        float melt=float((vMode>>MODE_FROST_SHIFT)&255u)/255.0;
+        color.rgb=bfgMelted(color.rgb,melt);
+        illumination=mix(illumination,vec3(1.0),melt);
+        specular*=1.0-melt;
+    }
     vec3 albedo=color.rgb;
+    // The relit weapon's metal (Separate skin and metal, c.levels.z): grey
+    // takes a colored room only half way, in its fill and in what it mirrors.
+    // Taken whole, a warm room turns grey metal the color of skin.
+    // Weapons 2.0: light from a glowing floor mostly misses what faces up.
+    if(weapon&&relit.fromBelow>0.0) {illumination*=1.0-0.35*relit.fromBelow;specular*=1.0-0.35*relit.fromBelow;}
+    if(weapon&&(vMode&MODE_FACE)==0u&&c.levels.z>=0.0) {
+        const float metalTint=0.55;   // as the face takes colored light
+        illumination=mix(illumination,vec3(dot(illumination,vec3(0.299,0.587,0.114))),metalTint*relit.metal);
+        specular=mix(specular,vec3(dot(specular,vec3(0.299,0.587,0.114))),metalTint*relit.metal);
+    }
+    // Weapons 2.0: the artwork stays readable however bright the room. Light
+    // rolls off to a ceiling a little past the painted colors, as on the face,
+    // keeping its hue; without one, grey paint clips to white. What it mirrors
+    // sits on the paint, so outlines and crevices stay dark, and is capped:
+    // Metal shine raises the cap.
+    if(weapon&&(vMode&MODE_FACE)==0u&&c.levels.w>0.0) {
+        const float knee=0.75,ceiling=1.25;
+        float peak=max(illumination.r,max(illumination.g,illumination.b));
+        if(peak>knee) illumination*=(knee+(ceiling-knee)*(1.0-exp(-(peak-knee)/(ceiling-knee))))/peak;
+        specular*=saturate(dot(albedo,vec3(0.299,0.587,0.114))*1.5);
+        specular=min(specular,vec3(0.2+0.12*(c.levels.z<0.0?1.0:c.levels.z)));
+        // Over a glowing floor the gun is lit from below by that glow alone: an
+        // even wash of its color, no reflections to spread over the gun at some
+        // angles, and a brighter rim along its edges, weakest along the top,
+        // which the light from below cannot reach (weaponProbe[5]: the floor).
+        float glow=smoothstep(0.0,0.6,weaponProbe[5].w);
+        if(glow>0.0) {
+            // c.weaponGlow: the liquid's own color, which the floor right under
+            // the player need not be when the pool is off to one side.
+            vec3 floorColor=max(c.weaponGlow.r,max(c.weaponGlow.g,c.weaponGlow.b))>0.0?c.weaponGlow.rgb:weaponProbe[5].rgb;
+            floorColor/=max(max(floorColor.r,max(floorColor.g,floorColor.b)),0.001);
+            // A pool off to one side (weaponProbe[3..4].w: toward it, on the map)
+            // lights the side of the gun toward it, across the sprite and by
+            // where its surface turns; the far side stays in the room's light.
+            // Under the player or dead ahead it reaches the whole gun.
+            float side=clamp(dot(vec2(weaponProbe[3].w,weaponProbe[4].w),normalize(c.right.xy))/0.6,-1.0,1.0);
+            float towardGlow=saturate(0.5+sign(side)*(0.65*relit.across+0.6*dot(relit.normal,c.right.xyz)));
+            float reached=round(mix(1.0,towardGlow,abs(side))*16.0)/16.0;
+            float wash=clamp(dot(illumination,vec3(0.299,0.587,0.114)),0.38,0.55);
+            float outline=smoothstep(0.03,0.3,1.0-saturate(dot(relit.normal,relit.view)));
+            float rim=round(outline*mix(1.0,0.3,smoothstep(0.2,0.8,dot(relit.normal,c.up.xyz)))*16.0)/16.0;
+            rim*=reached;
+            illumination=mix(illumination,floorColor*(wash+0.75*rim)+ownWeaponFlash,glow*reached);
+            specular=mix(specular,floorColor*0.25*rim,glow*reached);
+        }
+    }
     // MODE_FACE: painted skin already leans red, so colored light takes it
     // only part of the way (a red room tints the face, not floods it), and
     // never far past full brightness. Its light comes in the colormaps'
@@ -379,6 +434,19 @@ void main() {
         float level=dot(illumination,vec3(0.299,0.587,0.114));
         illumination=min(mix(vec3(level),illumination,0.45),vec3(1.25));
         illumination=max(round(illumination*16.0)/16.0,vec3(1.0/16.0));
+        // The god face's yellow eyes (relit.metal on the face: weapon.cpp) light
+        // themselves, whatever the room is doing to the rest of it, and throw
+        // a little of that light on the face around them.
+        // c.faceEyes: their brightness (0 off), how much of it reaches the face,
+        // how far (z, 1 seven pixels; relit.metal below 1 is the distance, 20 at 0)
+        // and how sharply it fades on the way (w).
+        if(c.faceEyes.x>0.0&&relit.metal>0.0) {
+            float eye=step(0.98,relit.metal);
+            float spread=saturate(1.0-(1.0-relit.metal*255.0/249.0)*20.0/(7.0*c.faceEyes.z));
+            illumination+=vec3(1.0,0.82,0.35)*round(pow(spread,c.faceEyes.w)*0.73*(1.0-eye)*c.faceEyes.y*16.0)/16.0;
+            illumination=mix(illumination,vec3(c.faceEyes.x),eye);
+            specular*=1.0-eye;
+        }
     }
     color.rgb=color.rgb*illumination;
     // Light also spills toward its own color by how saturated the texel is,
@@ -497,7 +565,8 @@ void main() {
     }
     // Eye adaptation: a stepped exposure while the view settles to new light.
     if(c.effects.z==0.0) color.rgb*=c.fx.x;
-    if(c.effects.z==32.0) color.rgb=1.0-color.rgb;
+    // The status bar's face is no part of the view the invulnerability inverts.
+    if(c.effects.z==32.0&&(vMode&(MODE_SCREEN|MODE_FACE))!=(MODE_SCREEN|MODE_FACE)) color.rgb=1.0-color.rgb;
     // A distance fog as in Turok (DERPINFO farfog): everything fades to one
     // colour, which is also all there is behind it; past its far end nothing
     // is drawn. After the exposure, so the fully fogged matches the clear.

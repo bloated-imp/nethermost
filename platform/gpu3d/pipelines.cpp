@@ -166,7 +166,7 @@ void releasePipelines() {
         release(*p);
 }
 void releaseTargets() {
-    for(SDL_GPUTexture **t:{&multisampleTexture,&colorTexture,&depthTexture,&sceneDepth,&emissionTexture,&emissionDepth,&bloomScratch,&bloomTexture})
+    for(SDL_GPUTexture **t:{&multisampleTexture,&colorTexture,&depthTexture,&sceneDepth,&emissionTexture,&emissionDepth,&bloomScratch,&bloomTexture,&meltPicture})
         release(*t);
 }
 void allocateTargets(int w,int h) {

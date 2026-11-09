@@ -36,6 +36,7 @@ enum { DRAW_SOLID, DRAW_FUZZ, DRAW_SHADOW };
 byte *screens[1];
 byte v_overlaymask[SCREENWIDTH*SCREENHEIGHT];
 boolean v_overlayactive;
+int *v_meltcolumns; // how far each 2-pixel column has fallen while the melt runs, else null (f_wipe.c)
 
 static void DrawPatchClipped(int x, int y, patch_t *patch, int mode)
 {

@@ -124,6 +124,7 @@ extern void (*R_ShotPassed)(line_t *line, fixed_t x, fixed_t y, fixed_t z, fixed
 // A body struck the glass on line hard enough to break it (Phobos, P_Strike): it shatters at
 // x, y, z, the body going dx, dy.
 extern void (*R_GlassStruck)(line_t *line, fixed_t x, fixed_t y, fixed_t z, fixed_t dx, fixed_t dy);
+extern void (*R_BfgGib)(mobj_t *thing);   /* the BFG killed this thing (bfg_melt.cpp) */
 // DERP: whether weather blowing in at a broken window reaches mo (the
 // renderer knows the panes and the wind); NULL: only the open sky does.
 extern int (*R_RainedIn)(mobj_t *mo);

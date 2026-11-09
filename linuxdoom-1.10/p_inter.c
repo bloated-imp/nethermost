@@ -896,7 +896,12 @@ P_DamageMobj
     target->health -= damage;	
     if (target->health <= 0)
     {
+	extern int p_bfgspray;
+	// The BFG's ball or its spray: what it kills goes up in its green (bfg_melt.cpp).
+	boolean bfg = p_bfgspray || (inflictor && inflictor->type == MT_BFG);
 	P_KillMobj (source, target);
+	if (bfg && R_BfgGib)
+	    R_BfgGib (target);
 	return;
     }
 

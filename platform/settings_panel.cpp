@@ -645,7 +645,7 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "How strongly a pickup tints the 3D view. 1.00 is the palette's own, 0 none, higher stronger.",
                         [](const Settings &d){return d.ps1PickupFlash!=0;}),
                     slider("ps1_pickup_weapon","PS1 pickup flash: weapon",&s.pickupFlashWeapon,0,12,0.25,
-                        "How strongly a pickup tints your weapon. The same number as the screen's slider brightens the two about equally; "
+                        "How strongly a pickup tints your weapon, with Weapons 2.0 on. The same number as the screen's slider brightens the two about equally; "
                         "0 none, higher stronger.",
                         [](const Settings &d){return d.ps1PickupFlash!=0;}),
                     check("ps1_damage_flash","PS1 damage flash",&s.ps1DamageFlash,
@@ -653,14 +653,48 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "PlayStation. Off: the whole screen flashes, as on PC.")}}}},
             {"Weapon",{
                 {"Weapon",{
+                    check("weapons_2","Weapons 2.0",&s.weapons2,
+                        "The master switch for everything done to the weapon's lighting here: muzzle flash color, place and bounce, skin "
+                        "and metal, the look over glowing liquids, the Light level and the PS1 pickup flash's strength on the gun. Off: "
+                        "the weapon exactly as in DERP, for comparing. The muzzle flash's color changes on the walls too.",
+                        [](const Settings &d){return d.weaponLighting!=0;}),
                     slider("weapon_flash_bounce","Muzzle flash bounce on weapon",&s.flashBounce,0,3,0.1,
                         "How much of your own muzzle flash comes back off the walls, floor and ceiling around you onto the weapon: "
                         "strong in a tight room or against a wall, little out in the open. 0 none.",
-                        [](const Settings &d){return d.weaponLighting!=0;}),
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    check("weapon_materials","Separate skin and metal",&s.weaponMaterials,
+                        "The relit weapon is lit by what each part is made of: a hand or a wooden stock stays matte, with soft light "
+                        "and no highlights, while grey metal mirrors the room and takes sharper highlights. Off: all one material.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    slider("weapon_metal_shine","Metal shine",&s.weaponMetalShine,0,3,0.05,
+                        "How much of the room and of highlights the weapon's metal shows. 0 no extra shine, 1.00 the default.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0&&d.weaponMaterials!=0;}),
+                    check("bfg_melt","BFG Melt",&s.bfgMelt,
+                        "A monster the BFG blows apart, by its ball or its spray of tracers, starts its gibs glowing in the projectile's "
+                        "green and eases back to their own colors as the animation ends, as if the energy melted it before it burst."),
+                    check("bfg_melt_deaths","BFG Melt: normal deaths",&s.bfgMeltDeaths,
+                        "The same green on a monster's ordinary death animation when the BFG kills it without gibbing it, and on the "
+                        "monsters that have no gibs at all. Off: gibs only.",
+                        [](const Settings &d){return d.bfgMelt!=0;}),
                     check("face_lighting","Relit face",&s.faceLighting,
                         "The face on the status bar is relit like the weapon, looking where you look: a lamp to your right lights "
                         "his right cheek, the room ahead lights his face, a muzzle flash flares over it, and in the dark it falls "
                         "into shadow."),
+                    check("god_eyes","God face: glowing eyes",&s.godEyes,
+                        "While you are invincible the yellow eyes on the relit face light themselves, however dark the room, and throw a little of that light on the face around them. The rampage and grin faces take the same eyes while you are.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0;}),
+                    slider("god_eyes_brightness","God face: eye brightness",&s.godEyesBright,0.5,3,0.05,
+                        "How bright the glowing eyes are. 1.00 their painted colors, 1.25 the default; much higher burns toward white.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0&&d.godEyes!=0;}),
+                    slider("god_eyes_light","God face: light on the face",&s.godEyesLight,0,3,0.05,
+                        "How much of the eyes' light falls on the face around them. 0 none, 1.00 the default.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0&&d.godEyes!=0;}),
+                    slider("god_eyes_falloff","God face: light falloff",&s.godEyesFalloff,1,8,0.1,
+                        "How sharply the eyes' light fades with distance from them. 1 an even fade, higher stays bright close to the eyes and drops away quickly.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0&&d.godEyes!=0;}),
+                    slider("god_eyes_size","God face: light size",&s.godEyesSize,0.3,2.5,0.05,
+                        "How far the eyes' light reaches across the face. 1.00 the default.",
+                        [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0&&d.godEyes!=0;}),
                     slider("face_muzzle_flash","Muzzle flash on face",&s.faceFlash,0,2,0.05,
                         "How strongly your own weapon's muzzle flash lights the face on the status bar. 1.00 as it was, 0 none.",
                         [](const Settings &d){return d.faceLighting!=0&&d.weaponLighting!=0;})}}}},

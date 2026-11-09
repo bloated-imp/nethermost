@@ -826,6 +826,10 @@ void A_Light2 (player_t *player, pspdef_t *psp)
 
 
 //
+// Set while the spray deals its damage, for P_DamageMobj (BFG melt).
+int p_bfgspray;
+
+//
 // A_BFGSpray
 // Spawn a BFG explosion on every monster in view
 //
@@ -857,7 +861,9 @@ void A_BFGSpray (mobj_t* mo)
 	for (j=0;j<15;j++)
 	    damage += (P_Random()&7) + 1;
 
+	p_bfgspray = 1;
 	P_DamageMobj (linetarget, mo->target,mo->target, damage);
+	p_bfgspray = 0;
     }
 }
 

@@ -761,6 +761,8 @@ static void addThing(mobj_t *thing,int i,const Uniforms &camera,float fraction,c
         const std::vector<byte> *cut=wounded?&holes:nullptr;
         // Rime on Phobos, or nukage rain's soak (craters.cpp): never both, Phobos has no weather.
         unsigned frost=soft?0u:std::max(bodyFrost(*thing),bodySoak(*thing))<<MODE_FROST_SHIFT;
+        // The BFG's green on its gibs (bfg_melt.cpp) borrows the same bits for as long as it lasts.
+        if(unsigned melt=soft?0u:bfgMelt(*thing,fraction))frost=MODE_BFG_MELT|melt<<MODE_FROST_SHIFT;
         auto finish=[&](std::vector<Vertex> &batch,size_t from) {
             for(size_t n=from;n<batch.size();++n) {
                 batch[n].mode|=frost;

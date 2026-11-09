@@ -110,6 +110,34 @@ floor and ceiling around you: strong in a tight room or against a wall, little
 out in the open. **F4 → Nethermost → Weapon → Muzzle flash bounce on weapon**
 sets how much.
 
+The relit weapon also treats each part as what it is made of. Grey metal mirrors
+the room and takes sharper highlights; a hand or a wooden stock stays matte.
+**F4 → Nethermost → Weapon → Separate skin and metal** turns that off, and
+**Metal shine** sets how shiny the metal is. Reflections follow where each part
+faces, so a glowing floor lights the underside of the gun and not its top.
+
+A ceiling on how bright light can make the weapon keeps its artwork readable in
+the brightest rooms.
+
+Over a glowing liquid such as slime or lava the gun keeps its original painted
+pixels and takes an even wash of the liquid's color with a brighter rim along its
+edges, so the light reads as coming from below. With the pool off to one side only
+the side of the gun toward it takes that light; the far side stays in the room's.
+
+**F4 → Nethermost → Weapon → Weapons 2.0** is the master switch for all of this,
+the muzzle flash's bounce, color and place, and what the Light level and the PS1
+pickup flash's strength do to the gun: off shows the weapon exactly as in DERP.
+
+**F4 → Nethermost → Weapon → BFG Melt:** a monster the BFG blows apart, by its ball
+or its tracers, starts its gibs glowing in the projectile's green and eases back to
+their own colors by the end of the animation. **BFG Melt: normal deaths** does the
+same for an ordinary death. **God face: glowing eyes:** while you are invincible the
+yellow eyes on the relit face light themselves and throw a little light around them,
+with sliders for how bright the eyes are, how much light they throw, how far, and how
+sharply it fades.
+The rampage and grin faces, which the game shows over the god face, take the same
+eyes while you are invincible.
+
 ## Your Own Sound Effects
 
 Recorded sound effects can stand in for the WAD's, such as a PlayStation

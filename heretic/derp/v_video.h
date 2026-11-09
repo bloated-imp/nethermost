@@ -6,6 +6,7 @@
 extern byte *screens[1];
 extern byte v_overlaymask[SCREENWIDTH * SCREENHEIGHT];
 extern boolean v_overlayactive;
+extern int *v_meltcolumns;
 extern int usegamma;
 extern byte gammatable[5][256];
 #endif

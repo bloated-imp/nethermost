@@ -41,6 +41,8 @@ void muzzleFlash(mobj_t *source,int weapon,int projectile) {
     }
     auto color=frameGlow(sprite,frame);
     // A soft gunpowder orange, less saturated than the flash's red frames.
+    // Weapons 2.0 off, the frames' own color, as in DERP.
+    if(!settings.weapons2)warm=0;
     const std::array<float,3> gunpowder={1.0f,0.74f,0.46f};
     for(int i=0;i<3;++i)color[i]+=(gunpowder[i]-color[i])*warm;
     FlashPulse pulse={units(source->x),units(source->y),z,radius,strength,leveltime,source,color};

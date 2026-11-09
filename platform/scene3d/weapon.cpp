@@ -5,22 +5,66 @@
 namespace doom3d {
 // Weapon frames to relight (weapon_lighting.h), keyed below the WAD lumps:
 // the de-lit artwork with its normals in B/A, two transparent columns, then
-// its gloss in R.
+// its gloss in R, how much of it is metal in G and its normals from the silhouette alone in B and A.
 // keepPaint (the status bar's face): its colors stay as painted. It is too
 // small for the weapon's de-lighting, which flattens it to mud; only its
 // normals and gloss are derived.
-static Image &weaponImage(int lump,bool keepPaint=false) {
-    int key=INT_MIN/2-lump; auto found=images.find(key); if(found!=images.end()) return found->second;
+// angryEyes: an invincible player's rampage or grin face, its eyes painted as
+// the god face's are (the game shows those two over the god face).
+static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false) {
+    // Weapons 2.0 keeps the weapon's paint over a glowing floor: that strong a
+    // light leaves only the artist's shading to read as detail (world.frag).
+    // Anywhere else the paint's light is taken out, for the room's to replace.
+    static bool overGlow=false;
+    if(weaponProbe[5*4+3]>0.6)overGlow=true;else if(weaponProbe[5*4+3]<0.4)overGlow=false;
+    bool face=keepPaint;
+    keepPaint=keepPaint||(settings.weapons2&&overGlow);
+    int key=angryEyes?INT_MIN/2-(1<<24)-lump:INT_MIN/2-lump*2-(keepPaint?1:0); auto found=images.find(key); if(found!=images.end()) return found->second;
     const Image &source=lumpImage(lump,false);
     int w=source.width,h=source.height,stride=2*w+2;
     const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
     auto maps=doom_weapon_delight(w,h,source.pixels.data(),palette);
     if(keepPaint) maps.pixels=source.pixels;
+    // Row 16, the five pixels of each squinting eye, in every blood level; the
+    // god face's own yellows, near white toward the outside as its eyes are.
+    if(angryEyes&&w==24&&h>16) {
+        static const byte ramp[5]={0xa3,0xe1,0xe0,0xa2,0xa3};
+        for(int n=0;n<5;++n) {maps.pixels[2*((size_t)16*w+5+n)]=ramp[n];maps.pixels[2*((size_t)16*w+18-n)]=ramp[n];}
+    }
+    // The face's stripe has no metal to hold: G marks the god face's eyes,
+    // which light themselves (255), and how much of their light falls on the
+    // face around them (below 250, how far each pixel is from an eye: 249 at
+    // the eye to 0 twenty pixels off; world.frag). Their yellow ramp runs up to
+    // near white in the middle of each eye.
+    bool god=face&&(angryEyes||lump==W_CheckNumForName((char*)"STFGOD0"));
+    auto eyeColor=[&](int index) {
+        float r=palette[index*3],g=palette[index*3+1],b=palette[index*3+2];
+        return (r>=235&&g>=235)||(r>=120&&g>=0.55f*r&&b<=0.4f*g);
+    };
+    std::vector<byte> eyeLight;
+    if(god) {
+        eyeLight.assign((size_t)w*h,0);
+        // The upper part of the face only: the teeth are painted in the same ramp.
+        auto isEye=[&](int x,int y) {
+            if(angryEyes)return y==16&&((x>=5&&x<=9)||(x>=14&&x<=18));
+            size_t i=(size_t)y*w+x;return y*3<h*2&&maps.pixels[2*i+1]&&eyeColor(maps.pixels[2*i]);
+        };
+        const int reach=20;
+        for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
+            float nearest=(float)reach;
+            for(int j=-reach;j<=reach;++j)for(int k=-reach;k<=reach;++k)
+                if(y+j>=0&&y+j<h&&x+k>=0&&x+k<w&&isEye(x+k,y+j))nearest=std::min(nearest,std::sqrt((float)(j*j+k*k)));
+            eyeLight[(size_t)y*w+x]=nearest==0?255:(byte)std::lround((1-nearest/reach)*249);
+        }
+    }
     std::vector<byte> packed((size_t)stride*h*4,0);
     for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
         size_t i=(size_t)y*w+x;byte *art=&packed[((size_t)y*stride+x)*4];
         art[0]=maps.pixels[2*i];art[1]=maps.pixels[2*i+1];art[2]=maps.normals[2*i];art[3]=maps.normals[2*i+1];
         packed[((size_t)y*stride+w+2+x)*4]=maps.gloss[i];
+        packed[((size_t)y*stride+w+2+x)*4+1]=face?(god?eyeLight[i]:0):maps.metal[i];
+        packed[((size_t)y*stride+w+2+x)*4+2]=maps.smooth[2*i];
+        packed[((size_t)y*stride+w+2+x)*4+3]=maps.smooth[2*i+1];
     }
     Image image;image.pixels=std::move(maps.pixels);image.opaque=false;
     image.width=w;image.height=h;image.left=source.left;image.top=source.top;
@@ -29,7 +73,7 @@ static Image &weaponImage(int lump,bool keepPaint=false) {
     return images.emplace(key,std::move(image)).first->second;
 }
 // What the relit weapon sees around it, in the view's frame: ahead, behind,
-// right, left, up and down (rgb, w unused). Five rays a direction walk the
+// right, left, up and down (rgb; the down face's w: how much of the floor below glows). Five rays a direction walk the
 // bake map from the eye; each hit shows its surface's average color under
 // its sector and baked light, plus its glow, as world.frag draws it. Eased
 // over about a tenth of a second so single rays changing what they hit don't
@@ -39,9 +83,14 @@ static Image &weaponImage(int lump,bool keepPaint=false) {
 // three vectors holds the player's own muzzle flash coming back off what the
 // rays hit (rgb): the flash lights those surfaces, near ones the most, and
 // they light the weapon, whose visible side faces away from the muzzle.
+// The w of the fourth and fifth: which way around the player a glowing liquid
+// lies, on the map (x, y; 0 when it is all around or nowhere).
 float weaponProbe[24]={};
+float weaponGlowColor[3]={};
+static float weaponGlowLean[2]={};
 static std::array<float,18> weaponProbeTarget={};
 static uint64_t weaponProbeTime=0;static unsigned weaponProbeSerial=~0u;
+static float weaponProbeFloorGlow=0;
 static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
     uint64_t now=SDL_GetTicksNS();
     bool fresh=weaponProbeSerial!=r_levelserial;
@@ -53,13 +102,15 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
     eye[2]=std::clamp(eye[2],own.floor+1,std::max(own.floor+1,own.ceiling-1));
     bool glow=settings.emissive;
     std::array<float,3> albedoSeen={},bounce={},flashColor={};
+    float glowSeen=0,floorGlow=0,glowAround=0;
     float flashRadius=0,flashStrength=0;
-    bool flash=settings.flashBounce>0&&ownMuzzleFlash(flashRadius,flashStrength,flashColor);
+    bool flash=settings.weapons2&&settings.flashBounce>0&&ownMuzzleFlash(flashRadius,flashStrength,flashColor);
     auto lit=[&](const std::array<float,3> &albedo,const Image *image,int at,const uint8_t *baked,float out[3]) {
         albedoSeen=albedo;
         float level=lighting(&sectors[at]),shown[3]={};
         if(baked) {for(int c=0;c<3;++c)shown[c]=baked[c]/255.0f*2;fillHeadroom(shown,level);}
         float cover=glow&&image&&image->emissionWeight>0?image->emissionCoverage:0;
+        glowSeen=cover>0?1.0f:0.0f;   // however little of it glows (radiance keeps this for glowing liquids)
         for(int c=0;c<3;++c)out[c]=albedo[c]*(level+shown[c])*(1-cover)+(cover>0?image->emissionColor[c]*cover*0.9f:0);
     };
     auto radiance=[&](const BakeHit &hit,float out[3]) {
@@ -80,6 +131,7 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
                 baked=&wallBakeCells[4*((size_t)(strip.y+row)*atlasStride+strip.x+column)];
             }
             lit(image?averageColor(*image):std::array<float,3>{0.5f,0.5f,0.5f},image,hit.sector,baked,out);
+            glowSeen=0;
             return;
         }
         bool ceiling=hit.kind==BakeHit::ceiling;
@@ -92,14 +144,21 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
             baked=flatCell(ceiling?ceilingLight:floorLight,(size_t)cy*mapWidth+cx);
         }
         lit(averageColor(image),&image,hit.sector,baked,out);
+        // Only a glowing liquid: a lit floor panel is an ordinary lamp.
+        if(ceiling||liquidLook(pic)==LIQUID_LOOK_NONE)glowSeen=0;
     };
     std::array<float,18> target={};
     for(int axis=0;axis<6;++axis) {
         float sign=axis&1?-1.0f:1.0f;const float *main=axes[axis/2],*a=axes[(axis/2+1)%3],*b=axes[(axis/2+2)%3];
         // The axis and four rays tilted 35 degrees around it.
         static const float tilt[5][2]={{0,0},{0.7f,0},{-0.7f,0},{0,0.7f},{0,-0.7f}};
+        // Weapons 2.0: only the down face sees a glowing floor. A ray tilted down
+        // out of a side face would bring it into what the top and the sides of
+        // the gun mirror. (Looking straight down they all are: then all count.)
+        float all[3]={},kept[3]={};int keptRays=0;
         for(const auto &t:tilt) {
             float direction[3],length=0,out[3]={};
+            glowSeen=0;
             for(int c=0;c<3;++c){direction[c]=main[c]*sign+a[c]*t[0]+b[c]*t[1];length+=direction[c]*direction[c];}
             length=std::sqrt(length);for(float &c:direction)c/=length;
             BakeHit hit;
@@ -108,7 +167,10 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
                 float level=lighting(sector);
                 for(int c=0;c<3;++c)out[c]=direction[2]>0.3f&&skyLevel>0?skyTint[c]*skyLevel:0.5f*level;
             } else {
+                glowSeen=0;
                 radiance(hit,out);
+                if(axis==5)floorGlow+=glowSeen/5;
+                if(hit.kind!=BakeHit::wall&&hit.kind!=BakeHit::ceiling&&hit.kind!=BakeHit::thing)glowAround+=glowSeen;
                 if(flash) {
                     // Out to the surface and back again.
                     float dx=hit.x-eye[0],dy=hit.y-eye[1],dz=hit.z-eye[2];
@@ -116,8 +178,11 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
                     for(int c=0;c<3;++c)bounce[c]+=albedoSeen[c]*flashColor[c]*flashStrength*reach*reach/30;
                 }
             }
-            for(int c=0;c<3;++c)target[axis*3+c]+=out[c]/5;
+            bool floorward=settings.weapons2&&axis!=5&&direction[2]<-0.25f&&glowSeen>0;
+            for(int c=0;c<3;++c) {all[c]+=out[c];if(!floorward)kept[c]+=out[c];}
+            if(!floorward)++keptRays;
         }
+        for(int c=0;c<3;++c)target[axis*3+c]=keptRays?kept[c]/keptRays:all[c]/5;
     }
     float seconds=fresh||!weaponProbeTime?1.0f:std::min(0.1f,(now-weaponProbeTime)/1e9f);
     weaponProbeTime=now;float blend=1-std::exp(-seconds/0.1f);
@@ -125,6 +190,34 @@ static void updateWeaponProbe(const Uniforms &camera,sector_t *sector) {
         weaponProbeTarget[i]+=(target[i]-weaponProbeTarget[i])*blend;
         weaponProbe[(i/3)*4+i%3]=weaponProbeTarget[i];
     }
+    // A walkway through a glowing pool counts as well as the pool: six of the
+    // thirty rays on a glowing floor, anywhere around.
+    floorGlow=std::max(floorGlow,std::min(1.0f,glowAround/6));
+    // Weapons 2.0: which way that liquid lies, and its color. A ring of rays
+    // down onto the floor all around, fixed on the map so turning does not
+    // make them see anything new. Walls stop them: a pool behind one is not lit.
+    float lean[2]={},seen=0,seenColor[3]={};
+    if(settings.weapons2&&glow&&(floorGlow>0||weaponProbeFloorGlow>0.001f)) {
+        static const float pitches[2][3]={{0.906f,0.423f,0.6f},{0.574f,0.819f,1.0f}};   // 25 and 55 degrees down: cosine, sine, weight (the nearer floor counts more)
+        for(int a=0;a<12;++a)for(const auto &down:pitches) {
+            float angle=a*doomPi/6,direction[3]={std::cos(angle)*down[0],std::sin(angle)*down[0],-down[1]};
+            BakeHit hit;
+            if(traceRay(bakeMap,(int)(sector-sectors),eye[0],eye[1],eye[2],direction,2048,SkyCeiling::escape,&hit)||hit.kind==BakeHit::none)continue;
+            if(hit.kind==BakeHit::wall||hit.kind==BakeHit::ceiling||hit.kind==BakeHit::thing)continue;
+            int pic=sectors[hit.sector].floorpic;
+            if(liquidLook(pic)==LIQUID_LOOK_NONE)continue;
+            const Image &image=lumpImage(firstflat+flattranslation[pic],true);
+            if(image.emissionWeight<=0||image.emissionCoverage<=0)continue;
+            lean[0]+=std::cos(angle)*down[2];lean[1]+=std::sin(angle)*down[2];seen+=down[2];
+            for(int c=0;c<3;++c)seenColor[c]+=image.emissionColor[c]*down[2];
+        }
+    }
+    for(int c=0;c<2;++c)weaponGlowLean[c]+=((seen>0?lean[c]/seen:0.0f)-weaponGlowLean[c])*blend;
+    weaponProbe[3*4+3]=weaponGlowLean[0];weaponProbe[4*4+3]=weaponGlowLean[1];
+    // The first sight of a liquid takes its color at once, for the glow fading in.
+    if(seen>0)for(int c=0;c<3;++c)weaponGlowColor[c]+=(seenColor[c]/seen-weaponGlowColor[c])*(weaponProbeFloorGlow<0.02f?1.0f:blend);
+    weaponProbeFloorGlow+=(floorGlow-weaponProbeFloorGlow)*blend;
+    weaponProbe[5*4+3]=weaponProbeFloorGlow;
     // Not eased: it lasts as long as the flash, a few tics. The gain keeps
     // the dark artwork in step with the bright walls it answers.
     const float bounceGain=3;
@@ -217,7 +310,19 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
     const void *face=settings.faceLighting&&settings.weaponLighting&&player->mo?ST_Face(&faceX,&faceY):nullptr;
     int faceLump=face?lumpOfPatch(face):-1;
     if(faceLump>=0) {
-        Image &image=weaponImage(faceLump,true);
+        // The rampage and grin faces outrank the god face (st_stuff.c); invincible,
+        // they show its eyes too.
+        static const std::vector<int> angryFaces=[] {
+            std::vector<int> found;char name[9];
+            for(int n=0;n<5;++n) {
+                snprintf(name,sizeof name,"STFKILL%d",n);found.push_back(W_CheckNumForName(name));
+                snprintf(name,sizeof name,"STFEVL%d",n);found.push_back(W_CheckNumForName(name));
+            }
+            return found;
+        }();
+        bool invincible=(player->cheats&CF_GODMODE)||player->powers[pw_invulnerability];
+        bool angryEyes=settings.godEyes&&invincible&&std::find(angryFaces.begin(),angryFaces.end(),faceLump)!=angryFaces.end();
+        Image &image=weaponImage(faceLump,true,angryEyes);
         float x=(float)(faceX-image.left),y=(float)(faceY-image.top);
         sector_t *sector=player->mo->subsector->sector;
         float light=sunLightAt(camera.eye[0],camera.eye[1],sector,flowLightAt(camera.eye[0],camera.eye[1],sector,

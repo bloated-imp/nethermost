@@ -3,6 +3,7 @@
    bloom), then presented with the HUD and the settings panel. */
 #include "internal.h"
 
+extern "C" int *v_meltcolumns;   // v_video.c
 namespace gpu3d {
 // The in-game settings panel: a quad over the whole drawable whose texture
 // coordinates place the 640x400 image at a whole-pixel scale in the middle;
@@ -33,6 +34,32 @@ static void pictureBox(int targetWidth,int targetHeight,int &x,int &y,int &w,int
 // This frame's HUD quad and weapon draws (the relit face among them), for drawHudLayer.
 static const std::vector<Vertex> *presentHud;
 static const std::vector<SpriteDraw> *presentWeapons;
+// The melt out of a level. DOOM's melt only has the 320x200 screen to work
+// with, where the 3D view is black and the face is the unlit one. So every
+// level frame is also kept whole (meltPicture), and while the melt runs its
+// columns are drawn over the screen, each fallen as far as DOOM's own column
+// (v_meltcolumns): the picture the player was looking at is what melts.
+SDL_GPUTexture *meltPicture;
+static int meltPictureW,meltPictureH;
+static bool meltPictureHeld;
+static std::vector<Vertex> meltQuad;
+static void layoutMelt(const FrameView &view,int targetWidth,int targetHeight) {
+    meltQuad.clear();
+    if(worldPending||!v_meltcolumns||!meltPictureHeld||!meltPicture||meltPictureW!=targetWidth||meltPictureH!=targetHeight)return;
+    int boxX,boxY,boxW,boxH;pictureBox(targetWidth,targetHeight,boxX,boxY,boxW,boxH);
+    float sx=(float)boxW/width,sy=(float)boxH/height;
+    float uiX=boxX+view.uiX*sx,uiW=view.uiWidth*sx,rowHeight=view.uiHeight*sy/SCREENHEIGHT;
+    float tw=(float)targetWidth,th=(float)targetHeight;
+    const int columns=SCREENWIDTH/2;
+    for(int i=0;i<columns;++i) {
+        if(v_meltcolumns[i]>=SCREENHEIGHT)continue;
+        // On a wide screen the first and last columns carry the picture beyond the 320 wide HUD.
+        int x0=i?(int)std::lround(uiX+uiW*i/columns):boxX,x1=i<columns-1?(int)std::lround(uiX+uiW*(i+1)/columns):boxX+boxW;
+        int fallen=(int)std::lround(std::max(v_meltcolumns[i],0)*rowHeight),h=boxH-fallen;
+        if(x1<=x0||h<=0)continue;
+        screenQuad(meltQuad,x0/tw*2-1,1-(boxY+fallen)/th*2,(x1-x0)/tw*2,h/th*2,x0/tw,boxY/th,x1/tw,(boxY+h)/th);
+    }
+}
 static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const FrameView &view,int targetWidth,int targetHeight) {
     int boxX,boxY,boxW,boxH;pictureBox(targetWidth,targetHeight,boxX,boxY,boxW,boxH);
     bool bars=boxW!=targetWidth||boxH!=targetHeight;
@@ -62,6 +89,13 @@ static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const F
         float sx=(float)boxW/width,sy=(float)boxH/height;
         drawHudLayer(command,pass,view,*presentWeapons,*presentHud,boxX+view.uiX*sx,boxY+view.uiY*sy,view.uiWidth*sx,view.uiHeight*sy);
     }
+    if(!meltQuad.empty()) {
+        SDL_GPUViewport whole={0,0,(float)targetWidth,(float)targetHeight,0,1};SDL_SetGPUViewport(pass,&whole);
+        SDL_BindGPUGraphicsPipeline(pass,settingsPipeline);
+        SDL_GPUTextureSamplerBinding picture={meltPicture,nearestClamp};
+        SDL_BindGPUFragmentSamplers(pass,0,&picture,1);
+        drawVertices(pass,meltQuad);
+    }
     // The overlays and the settings panel use the whole screen, bars and all.
     if(bars) {SDL_GPUViewport whole={0,0,(float)targetWidth,(float)targetHeight,0,1};SDL_SetGPUViewport(pass,&whole);}
 #ifdef DOOM_DEVTOOLS
@@ -85,6 +119,18 @@ static void present(SDL_GPUCommandBuffer *command,SDL_GPUTexture *target,const F
         drawVertices(pass,settingsQuad);
     }
     SDL_EndGPURenderPass(pass);
+}
+// Each level frame is kept for the melt that may follow it: nothing says one is coming until the level has gone.
+static void keepPicture(SDL_GPUCommandBuffer *command,const FrameView &view,int w,int h) {
+    if(!worldPending) {if(!v_meltcolumns)meltPictureHeld=false;return;}
+    if(!meltPicture||meltPictureW!=w||meltPictureH!=h) {
+        release(meltPicture);
+        meltPicture=createTexture(swapchainFormat,w,h,SDL_GPU_TEXTUREUSAGE_COLOR_TARGET|SDL_GPU_TEXTUREUSAGE_SAMPLER);
+        meltPictureW=w;meltPictureH=h;
+    }
+    if(!meltPicture) {meltPictureHeld=false;return;}
+    present(command,meltPicture,view,w,h);
+    meltPictureHeld=true;
 }
 static void capture(SDL_GPUCommandBuffer *command,const FrameView &view,int w,int h) {
     SDL_GPUTexture *image=createTexture(swapchainFormat,w,h,SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
@@ -489,7 +535,8 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette,const unsi
         // the same number on both sliders brightens them together.
         const float weaponShare=0.25f;
         if(settings.pickupFlashStrength!=1) {scaled(strengthened,settings.pickupFlashStrength);worldPalette=strengthened;}
-        scaled(weaponStrengthened,settings.pickupFlashWeapon*weaponShare);weaponPalette=weaponStrengthened;
+        // Weapons 2.0 off, the weapon takes the palette's own flash, as in DERP.
+        if(settings.weapons2) {scaled(weaponStrengthened,settings.pickupFlashWeapon*weaponShare);weaponPalette=weaponStrengthened;}
     }
     std::vector<unsigned> overlay=hudPixels(pixels,fixedPalette,fixedPalette!=palette);
     loadingBackdropValid=!worldPending;
@@ -504,6 +551,8 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette,const unsi
     std::vector<Vertex> hud;screenQuad(hud,-1,1,2,2,0,0,1,1);
     std::vector<Vertex> cross=crosshairVertices(view.worldW,view.worldH);
     std::vector<const std::vector<Vertex>*> transient={&hud,&cross};
+    layoutMelt(view,(int)drawableWidth,(int)drawableHeight);
+    if(!meltQuad.empty())transient.push_back(&meltQuad);
     for(const auto &draw:weapons)transient.push_back(&draw.vertices);
     std::vector<unsigned> settingsImage;settingsQuad.clear();
     if(I_Render3DSettingsOpen()) {layoutSettingsPanel(drawableWidth,drawableHeight,settingsImage,I_Render3DSettingsDraw);transient.push_back(&settingsQuad);}
@@ -537,6 +586,7 @@ void I_Render3DPresent(const unsigned *pixels,const unsigned *palette,const unsi
     if(render!=command)submitProfiled(render,frameStart);
     presentHud=&hud;presentWeapons=&weapons;
     if(swapchain)present(command,swapchain,view,(int)drawableWidth,(int)drawableHeight);
+    keepPicture(command,view,(int)drawableWidth,(int)drawableHeight);
     flushUploads();
     if(screenshotPending||renderCheckDue()) {screenshotPending=false;capture(command,view,(int)drawableWidth,(int)drawableHeight);}
     else {

@@ -489,6 +489,7 @@ extern void (*R_DamageHit)(mobj_t *target, mobj_t *inflictor, mobj_t *source, in
 extern boolean (*R_PlaneImpact)(sector_t *sector, boolean ceiling, fixed_t x, fixed_t y, fixed_t z);
 extern void (*R_ShotPassed)(line_t *line, fixed_t x, fixed_t y, fixed_t z, fixed_t dx, fixed_t dy);
 extern void (*R_GlassStruck)(line_t *line, fixed_t x, fixed_t y, fixed_t z, fixed_t dx, fixed_t dy);	/* never called (DOOM's Phobos) */
+extern void (*R_BfgGib)(mobj_t *thing);	/* never called (DOOM's BFG) */
 extern int (*R_RainedIn)(mobj_t *mo);	/* never called (DOOM's nukage rain) */
 // Frames between tics (the accelerated renderer interpolates).
 extern boolean r_uncapped;

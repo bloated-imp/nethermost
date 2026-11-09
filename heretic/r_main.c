@@ -28,6 +28,7 @@ void (*R_DamageHit)(mobj_t *target, mobj_t *inflictor, mobj_t *source, int damag
 boolean (*R_PlaneImpact)(sector_t *sector, boolean ceiling, fixed_t x, fixed_t y, fixed_t z);
 void (*R_ShotPassed)(line_t *line, fixed_t x, fixed_t y, fixed_t z, fixed_t dx, fixed_t dy);
 void (*R_GlassStruck)(line_t *line, fixed_t x, fixed_t y, fixed_t z, fixed_t dx, fixed_t dy);
+void (*R_BfgGib)(mobj_t *thing);
 int (*R_RainedIn)(mobj_t *mo);
 boolean	r_uncapped;
 

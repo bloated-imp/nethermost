@@ -41,7 +41,7 @@ struct LightBlocker { vec4 line,opening; };
 #define WEATHER_ASH 5.0
 #define WEATHER_FOG 6.0
 #define WEATHER_DRY_ICE 7.0
-#define CAMERA_BLOCK { vec4 eye,right,forward,up,projection,effects,materials,flashlightTint,fog,map,water,sun,bake,fx,fx2,texFilter,outdoor,haze,mood,weather,phobos,weatherTint,fallColor,settleColor,bank,bankColor,climate,beam,beamAim,beamLight,farFog,farFogRange; vec4 flicker[4]; vec4 clearing[8]; vec4 rush; vec4 eyes; vec4 levels; }
+#define CAMERA_BLOCK { vec4 eye,right,forward,up,projection,effects,materials,flashlightTint,fog,map,water,sun,bake,fx,fx2,texFilter,outdoor,haze,mood,weather,phobos,weatherTint,fallColor,settleColor,bank,bankColor,climate,beam,beamAim,beamLight,farFog,farFogRange; vec4 flicker[4]; vec4 clearing[8]; vec4 rush; vec4 eyes; vec4 levels; vec4 weaponGlow; vec4 faceEyes; }
 #define FLASH_BLOCK { uint flashCount,flashReserved0,flashReserved1,flashReserved2; Flash lights[63]; }
 // count, then four light indices, then padding (see doom3d::FogLights).
 #define FOG_BLOCK { uvec4 fogA,fogB; }

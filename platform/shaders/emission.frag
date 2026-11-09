@@ -46,6 +46,12 @@ void main() {
     if(!sprite&&(vMode&MODE_DEAD_GLOW)!=0u) e=0.0; // A shot-out lamp or screen.
     if(!sprite&&(vMode&MODE_STAINED_GLASS)!=0u) e=0.0; // Stained glass: no bloom, so its shards' glints show.
     if(!sprite) e*=unpackUnorm4x8(vLampTint).a; // A fading sector's lamps (lampGlow).
+    // The BFG's green on its gibs blooms as long as it lasts (bfg_melt.cpp).
+    if(sprite&&(vMode&(MODE_BFG_MELT|MODE_SCREEN))==MODE_BFG_MELT&&c.effects.z==0.0) {
+        float melt=float((vMode>>MODE_FROST_SHIFT)&255u)/255.0;
+        color.rgb=bfgMelted(color.rgb,melt);
+        e=max(e,0.5*melt);
+    }
     if(!sprite&&(vMode>>MODE_SECTOR_SHIFT)>0u&&(uint(c.flashlightTint.w)&FEATURE_GLOW_EDGES)!=0u) {
         vec3 normal=normalize(cross(dFdx(vWorld),dFdy(vWorld)));
         if(dot(normal,c.eye.xyz-vWorld)<0.0) normal=-normal;

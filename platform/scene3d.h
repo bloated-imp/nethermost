@@ -67,8 +67,8 @@ struct Vertex { float x,y,z,u,v,light; unsigned mode; float red=0,green=0,blue=0
 // farFog, farFogRange: a distance fog as in Turok (DERPINFO farfog): colour (rgb), on (w); clear to range.x, solid from range.y.
 // rush: the fall's smear (rush.cpp, rush.glsl): the point it falls toward in screen uv, homogeneous (xyz), how hard (w).
 // eyes: the player's (eyes.cpp): lids closed (x, 0-1), dark (y, 0-1).
-struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4]; };
-static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==752,"Shader buffer layout");
+struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4],weaponGlow[4],faceEyes[4]; };
+static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==784,"Shader buffer layout");
 using Flash=doom_flash_t;
 // 63 lights keep the FlashSet uniform block under 4 KB and fit the 64-bit light masks.
 constexpr unsigned maxLights=63;
@@ -91,6 +91,16 @@ struct Settings {
     int ps1Title=1; // The title page as on the PlayStation: fire, the DOOM logo rising behind it (f_firetitle.c).
     float lightLevel=1; // The sectors' own light levels scaled by this (world.frag, c.levels.x): below 1 the world is darker; lamps, flashes and the flashlight keep theirs.
     float faceFlash=1; // How strongly the player's own muzzle flash lights the relit face (0-2).
+    int weapons2=1; // Weapons 2.0: the master switch for the relit weapon's newer lighting. Off: as it was before them.
+    int godEyes=1; // The god face's yellow eyes light themselves on the relit face (weapon.cpp, world.frag).
+    float godEyesBright=1.25f; // How bright those eyes are, against their painted colors (1 as painted).
+    float godEyesLight=1; // How much of their light falls on the face around them (0 none, 1 the default).
+    float godEyesFalloff=3; // How sharply that light fades with distance from the eyes (1 evenly, higher quickly).
+    float godEyesSize=1; // How far that light reaches across the face (1 seven of its pixels).
+    int bfgMelt=1; // A monster the BFG blows apart starts its gibs glowing green (bfg_melt.cpp).
+    int bfgMeltDeaths=1; // With bfgMelt: its ordinary deaths too, for the monsters that have no gibs or weren't hit hard enough.
+    int weaponMaterials=1; // The relit weapon's hand and other non-metal parts matte, its metal shinier (weapon_lighting.h, weapon.glsl).
+    float weaponMetalShine=1; // With weaponMaterials: how much more of the room and of highlights the metal shows (0-3).
     float flashBounce=1; // How much of the player's own muzzle flash comes back off nearby walls onto the relit weapon (0-3).
     int ps1PickupFlash=1; // The pickup flash tints only the 3D view, not the HUD or the sky, as on the PlayStation.
     float pickupFlashStrength=1; // How strong that flash is on the 3D view (0-3, 1 the palette's own).
@@ -269,6 +279,8 @@ extern std::vector<std::array<uint32_t,4>> lightWords;
 extern FogLights fogLights;
 // The relit weapon's surroundings: ahead, behind, right, left, up, down (weaponDraws).
 extern float weaponProbe[24];
+// The color of the glowing liquid around the player, for the weapon (weaponDraws).
+extern float weaponGlowColor[3];
 extern std::vector<LightBlocker> lightBlockers;
 /* Texture keys: wall index >=0, WAD lump = -1-lump. */
 extern std::unordered_map<int,Image> images;

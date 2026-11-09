@@ -98,6 +98,7 @@ std::vector<Vertex> panelQuad(Uint32 drawableWidth,Uint32 drawableHeight,float o
 // loading.cpp
 void showLoading(const char *title,const char *stage,float fraction);
 void releaseLoading();
+extern SDL_GPUTexture *meltPicture;   // the last finished level frame, for the melt out of a level
 extern std::vector<unsigned> loadingBackdrop;   // the last screen that was not a level, for the PS1 loading plaque
 extern bool loadingBackdropValid;
 
