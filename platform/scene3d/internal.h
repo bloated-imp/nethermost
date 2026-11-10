@@ -68,6 +68,7 @@ void I_LatchMouse(void); // i_sdl_video.c: the mouse's newest motion, read late
 #include "../weapon_lighting.h"
 #include "../sprite_eyes.h"
 #include "../sprite_eyes_stock.h"
+#include "../chaingun_shape_stock.h"
 
 
 namespace doom3d {
@@ -409,6 +410,7 @@ extern uint8_t lightKind;
 void muzzleFlash(mobj_t *source,int weapon,int projectile);
 bool ownMuzzleFlash(float &radius,float &strength,std::array<float,3> &color);
 bool heldWeaponIs(const char *sprite);
+bool chromeChaingunNow();
 bool gunBlastLight(float color[3],float shape[4]);
 void sparkFlash(float x,float y,float z,float radius,float strength,const std::array<float,3> &color);
 void appendLight(float x,float y,float z,float radius,float strength,const std::array<float,3> &color,const mobj_t *source,float directionality,bool occluded=true,float baked=0,

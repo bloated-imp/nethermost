@@ -284,6 +284,7 @@ void main() {
     // MODE_SCREEN|MODE_RELIT: the relit weapon (weapon.glsl).
     bool weapon=sprite&&(vMode&(MODE_SCREEN|MODE_RELIT))==(MODE_SCREEN|MODE_RELIT)&&(c.effects.z==0.0||(vMode&MODE_FACE)!=0u);   // the face stays itself under the invulnerability's colors
     Weapon relit=Weapon(vec3(0),vec3(0),vec3(0),0.0,0.0,0.0,0.0);
+    float unshaded=light;   // the gun's light before its shape shades it (the Chrome chaingun, below)
     if(weapon) relit=weaponSurface(light);
     // Preserve the sprite's painted shading with one RGB increment for the
     // whole billboard; world surfaces evaluate colored lighting per pixel.
@@ -401,6 +402,27 @@ void main() {
         if(peak>knee) illumination*=(knee+(ceiling-knee)*(1.0-exp(-(peak-knee)/(ceiling-knee))))/peak;
         specular*=saturate(dot(albedo,vec3(0.299,0.587,0.114))*1.5);
         specular=min(specular,vec3(0.2+0.12*(c.levels.z<0.0?1.0:c.levels.z)));
+        // The Chrome chaingun (c.weaponSheen.w -1): its chrome is painted, and
+        // painted chrome under full shading goes muddy where its shape turns from
+        // the light. It takes about half of it: the light still runs round each barrel.
+        // Its own muzzle flash (ownFlashLit, weapon.glsl) is kept out of that and
+        // added whole, times c.bfgLight.x (Chrome chaingun: muzzle flash).
+        // The room mirrored broadly on top only flattens its painted reflections;
+        // instead it mirrors the room by its drawn shape, and the lights round it
+        // glint along each tube, on the paint's own polish: bright chrome
+        // takes most, the dark gaps and outlines none (c.bfgLight.y, Chrome shine).
+        if(c.weaponSheen.w<0.0) {
+            const vec3 luma=vec3(0.299,0.587,0.114);
+            float paint=saturate(dot(albedo,luma)*1.4);
+            vec3 flash=min(ownFlashLit,illumination);
+            illumination=min(mix(vec3(unshaded)*lampTint,illumination-flash,0.45),vec3(1.05));   // never past its paint: bright chrome would clip to flat white
+            illumination=min(illumination+flash*c.bfgLight.x,vec3(1.4));
+            specular*=0.3;
+            specular+=hueSteps(min(ownFlashSpec*paint*c.bfgLight.x,vec3(0.45)));
+            mat3 frame=transpose(mat3(c.right.xyz,c.up.xyz,c.forward.xyz));
+            vec3 mirrored=weaponSurroundings(frame*reflect(-relit.view,relit.normal));
+            specular+=hueSteps(min((mirrored*0.5+chromeGlint)*paint*paint*c.bfgLight.y,vec3(0.5)));
+        }
         // The shotgun firing (c.weaponSheen: its flash now, 0 on every other gun).
         // It is painted almost pure black, which no multiplied light can brighten
         // and the rule above takes the shine off: the blast is added on the

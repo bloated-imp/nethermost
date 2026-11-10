@@ -627,7 +627,8 @@ FrameView prepareFrame(int w,int h) {
             bool own=settings.weapons2&&gunBlastLight(gun,shape);
             for(int c=0;c<3;++c)camera.weaponSheen[c]=blast?color[c]*strength:gun[c];
             for(int c=0;c<4;++c)camera.bfgLight[c]=shape[c];   // its reach and fade down the gun, and where the muzzle is (weapon.glsl)
-            camera.weaponSheen[3]=own?1.0f:0.0f;   // w: a light of its own (weapon.glsl)
+            camera.weaponSheen[3]=own?1.0f:chromeChaingunNow()?-1.0f:0.0f;   // w: a light of its own (weapon.glsl), or -1 the Chrome chaingun (world.frag)
+            if(camera.weaponSheen[3]<0){camera.bfgLight[0]=settings.chromeFlash;camera.bfgLight[1]=settings.chromeShine;}   // the Chrome chaingun's flash and shine (world.frag)
         }
         camera.levels[2]=settings.weapons2&&settings.weaponMaterials?settings.weaponMetalShine:-1.0f;   // the relit weapon's materials (weapon.glsl)
         for(int c=0;c<3;++c)camera.weaponGlow[c]=weaponGlowColor[c];   // last frame's: the weapon's probe runs after this

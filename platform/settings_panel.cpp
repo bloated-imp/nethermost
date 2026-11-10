@@ -669,6 +669,17 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "How much of your own muzzle flash comes back off the walls, floor and ceiling around you onto the weapon: "
                         "strong in a tight room or against a wall, little out in the open. 0 none.",
                         [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    check("chrome_chaingun","Chrome chaingun",&s.chromeChaingun,
+                        "The chaingun keeps its painted chrome, and its barrels, rings and housing take shapes drawn for them, so light "
+                        "runs round each barrel. Off: the chaingun relit as the other guns are, as before.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    slider("chrome_flash","Chrome chaingun: muzzle flash",&s.chromeFlash,0,2,0.05,
+                        "How much the chaingun's own muzzle flash lights its chrome while firing. 1.00 all of it, the default.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0&&d.chromeChaingun!=0;}),
+                    slider("chrome_shine","Chrome chaingun: shine",&s.chromeShine,0,3,0.05,
+                        "How much the chrome mirrors the room and glints in the lights around it, along each barrel. 0 its painted "
+                        "reflections only, 1.00 the default.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0&&d.chromeChaingun!=0;}),
                     check("weapon_materials","Separate skin and metal",&s.weaponMaterials,
                         "The relit weapon is lit by what each part is made of: a hand or a wooden stock stays matte, with soft light "
                         "and no highlights, while grey metal mirrors the room and takes sharper highlights. Off: all one material.",

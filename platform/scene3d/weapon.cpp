@@ -60,6 +60,24 @@ static std::vector<byte> flashBarrel(const Image &art,const byte *palette,bool p
     for(int x=0;x<w;++x)if(reached[x]>=0)for(int y=reached[x];y<h;++y)barrel[(size_t)y*w+x]=1;
     return barrel;
 }
+// The Chrome chaingun (F4 Nethermost, with Weapons 2.0): the stock chaingun's
+// frames keep their painted chrome and take the shape drawn for them
+// (chaingun_shape_stock.h): round barrels, banded rings, a rounded housing.
+static bool chromeChaingun() {return settings.chromeChaingun&&settings.weapons2&&settings.weaponLighting;}
+// The drawn shape for a chaingun frame, or null (not the stock art; remembered).
+static const unsigned char *chaingunShape(int lump) {
+    static std::map<int,const unsigned char*> known;
+    auto found=known.find(lump);if(found!=known.end())return found->second;
+    const Image &art=lumpImage(lump,false);
+    return known[lump]=doom_chaingun_shape(lumpinfo[lump].name,art.width,art.height,art.pixels.data());
+}
+// The displayed player's chaingun is up and drawn in chrome (world.frag).
+bool chromeChaingunNow() {
+    if(!chromeChaingun()||!heldWeaponIs("CHGG"))return false;
+    const pspdef_t &gun=players[displayplayer].psprites[0];
+    const spriteframe_t &frame=sprites[gun.state->sprite].spriteframes[gun.state->frame&FF_FRAMEMASK];
+    return chaingunShape(firstspritelump+frame.lump[0])!=nullptr;
+}
 // angryEyes: an invincible player's rampage or grin face, its eyes painted as
 // the god face's are (the game shows those two over the god face).
 // barrelOnly: of the rocket launcher's flash frames, just the launcher (flashBarrel).
@@ -71,7 +89,12 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false,boo
     if(weaponProbe[5*4+3]>0.6)overGlow=true;else if(weaponProbe[5*4+3]<0.4)overGlow=false;
     bool face=keepPaint;
     keepPaint=keepPaint||(settings.weapons2&&overGlow);
-    int key=barrelOnly?INT_MIN/2-(2<<24)-lump*2-(keepPaint?1:0):angryEyes?INT_MIN/2-(1<<24)-lump:INT_MIN/2-lump*2-(keepPaint?1:0); auto found=images.find(key); if(found!=images.end()) return found->second;
+    // The Chrome chaingun: its own frames with their drawn shape, and the ring
+    // its flash frames carry, both with the chrome painted on them kept.
+    const unsigned char *drawn=!face&&chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGG",4)?chaingunShape(lump):nullptr;
+    bool chrome=drawn||(!face&&barrelOnly&&chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGF",4));
+    if(chrome)keepPaint=true;
+    int key=chrome?INT_MIN/2-(4<<24)-lump*2-(barrelOnly?1:0):barrelOnly?INT_MIN/2-(2<<24)-lump*2-(keepPaint?1:0):angryEyes?INT_MIN/2-(1<<24)-lump:INT_MIN/2-lump*2-(keepPaint?1:0); auto found=images.find(key); if(found!=images.end()) return found->second;
     const Image &source=lumpImage(lump,false);
     int w=source.width,h=source.height,stride=2*w+2;
     const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
@@ -82,6 +105,8 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false,boo
     }
     auto maps=doom_weapon_delight(w,h,art.data(),palette);
     if(keepPaint) maps.pixels=art;
+    if(drawn) {maps.normals.assign(drawn,drawn+(size_t)w*h*2);maps.smooth=maps.normals;}
+    else if(chrome) maps.normals=maps.smooth;   // the flash's ring: rounded by its outline, its paint no bumps
     // Row 16, the five pixels of each squinting eye, in every blood level; the
     // god face's own yellows, near white toward the outside as its eyes are.
     if(angryEyes&&w==24&&h>16) {
@@ -474,9 +499,10 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
         bool relit=settings.weaponLighting&&!bright;
         int lump=firstspritelump+sf.lump[0];
         // Weapons 2.0: the rocket launcher's flash frames bring the front of the
-        // launcher with them, the plasma rifle's the whole gun; that part is lit
-        // as the rest of the gun is.
-        bool flameOnly=bright&&settings.weaponLighting&&settings.weapons2&&(!strncmp(lumpinfo[lump].name,"MISF",4)||!strncmp(lumpinfo[lump].name,"PLSF",4));
+        // launcher with them, the plasma rifle's the whole gun, the chaingun's (in
+        // chrome) the ring at its barrels' end; that part is lit as the rest of the gun is.
+        bool flameOnly=bright&&settings.weaponLighting&&settings.weapons2&&(!strncmp(lumpinfo[lump].name,"MISF",4)||!strncmp(lumpinfo[lump].name,"PLSF",4)||
+            (chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGF",4)));
         Image &image=flameOnly?flashFlame(lump):relit?weaponImage(lump):lumpImage(lump,false);
         float x=units(psp.sx)+shiftX-image.left,y=viewwindowy+viewheight/2.0f-100+units(psp.sy)+shiftY-image.top;
         if(flameOnly) {
@@ -495,8 +521,17 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
         float light=bright?1.0f:sunLightAt(camera.eye[0],camera.eye[1],player->mo->subsector->sector,
                 flowLightAt(camera.eye[0],camera.eye[1],player->mo->subsector->sector,
                 seamLightAt(camera.eye[0],camera.eye[1],player->mo->subsector->sector,lighting(player->mo->subsector->sector))));
-        screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,image.height/100.0f,u0,0,u1,image.height,light,
-            MODE_SCREEN|MODE_SPRITE|(relit?MODE_RELIT|(sf.flip[0]?MODE_FLIPPED:0u):0u));
+        unsigned mode=MODE_SCREEN|MODE_SPRITE|(relit?MODE_RELIT|(sf.flip[0]?MODE_FLIPPED:0u):0u);
+        // The Chrome chaingun over the status bar: the gun goes on under the bar,
+        // and a ring cut off at its top edge shows only its bright top row, which
+        // the chrome makes a lone line. Its last row above the bar repeats the
+        // one above it, so the barrels run on into the bar.
+        float bottom=(float)(viewwindowy+viewheight),cut=bottom-1-y;
+        if(relit&&viewwindowy+viewheight<SCREENHEIGHT&&chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGG",4)&&cut>=1&&cut+1<image.height) {
+            screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,cut/100.0f,u0,0,u1,cut,light,mode);
+            screenQuad(weapon,x/160-1,1-(bottom-1)/100,image.width/160.0f,1/100.0f,u0,cut-1,u1,cut,light,mode);
+        }
+        else screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,image.height/100.0f,u0,0,u1,image.height,light,mode);
         if(bright)for(auto &vertex:weapon)vertex.lampTint=fullbrightTint;   // the gun firing: the Light level leaves it alone
         if(!bright)lightScreenQuad(weapon,camera,player,light,relit,false);
         draws.push_back({&image,std::move(weapon)});

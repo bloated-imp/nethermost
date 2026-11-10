@@ -103,6 +103,9 @@ struct Settings {
     float godEyesSize=1; // How far that light reaches across the face (1 seven of its pixels).
     int bfgMelt=1; // A monster the BFG blows apart starts its gibs glowing green (bfg_melt.cpp).
     int bfgMeltDeaths=1; // With bfgMelt: its ordinary deaths too, for the monsters that have no gibs or weren't hit hard enough.
+    int chromeChaingun=1; // The stock chaingun keeps its painted chrome and takes a drawn shape (chaingun_shape_stock.h); 0 as before.
+    float chromeFlash=1.0f; // The Chrome chaingun: how much of its own muzzle flash lights it, 1 all of it.
+    float chromeShine=1.0f; // The Chrome chaingun: how much it mirrors the room and glints, 0 its painted reflections only.
     int weaponMaterials=1; // The relit weapon's hand and other non-metal parts matte, its metal shinier (weapon_lighting.h, weapon.glsl).
     float weaponMetalShine=1; // With weaponMaterials: how much more of the room and of highlights the metal shows (0-3).
     float bfgLightStrength=1; // The BFG's green light on the gun at the muzzle (0 none, 1 the default).

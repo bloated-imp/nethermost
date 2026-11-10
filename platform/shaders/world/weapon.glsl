@@ -38,6 +38,10 @@ vec3 behindGun() {
 // The player's own muzzle flash on the weapon, kept apart for the look over
 // a glowing floor (world.frag), where the room's light is replaced.
 vec3 ownWeaponFlash=vec3(0);
+// The Chrome chaingun (world.frag): all the player's own muzzle flash gives the
+// gun, light and highlights, kept apart so the chrome's softened shading
+// doesn't halve it; and sharp glints of the lights round it along its tubes.
+vec3 ownFlashLit=vec3(0),ownFlashSpec=vec3(0),chromeGlint=vec3(0);
 // The light behind the head, for the ears to let through (world.frag).
 vec3 earBacklight=vec3(0);
 // How much of a light in that direction reaches the ear at across (the face's
@@ -162,6 +166,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
         specular+=pulse*statics.w*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
         specular+=pulse*statics.w*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
+        if(c.weaponSheen.w<0.0) chromeGlint+=pulse*statics.w*pow(saturate(dot(n,halfDirection)),48.0);
         float lit=max(facing,upper*upperDiffuse*saturate(dot(upperNormal,toLight))*smoothstep(0.1,0.6,dot(toLight,c.forward.xyz)));
         if(face) earBacklight+=pulse*statics.w*behindEar(toLight,w.across);
         pulse*=mix(1.0,0.25+1.0*lit+rimGain*rim+1.2*creep,statics.w);
@@ -196,6 +201,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         if(amount<=0.0) continue;
         amount=min(amount,1.5)*0.5;
         vec3 toLight=normalize(lights[i].position.xyz-weaponAt);
+        bool ownFlash=false;vec3 pulseBefore=pulse,specularBefore=specular;
         // The face's own hitscan muzzle flash shines from the player's
         // middle, just under and behind the face, so it would graze only
         // the edges; it comes from the gun out in front, a little low.
@@ -206,7 +212,7 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         // middle: it rims and creeps over the gun from in front rather than
         // flooding the whole of it.
         else if(c.levels.w>0.0&&(vMode&MODE_FACE)==0u&&distance(lights[i].position.xyz,c.eye.xyz)<24.0)
-            {toLight=normalize(c.eye.xyz+48.0*c.forward.xyz-6.0*c.up.xyz-weaponAt);ownWeaponFlash+=lights[i].color.rgb*amount*0.7;}
+            {toLight=normalize(c.eye.xyz+48.0*c.forward.xyz-6.0*c.up.xyz-weaponAt);ownWeaponFlash+=lights[i].color.rgb*amount*0.7;ownFlash=true;}
         if(face) earBacklight+=lights[i].color.rgb*amount*behindEar(toLight,w.across);
         float facing=saturate(dot(n,toLight));
         float rim=pow(1.0-saturate(dot(n,view)),2.0)*facing*saturate(0.35-dot(toLight,view));
@@ -224,6 +230,9 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
         specular+=lights[i].color.rgb*amount*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
         specular+=lights[i].color.rgb*amount*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
+        float glint=c.weaponSheen.w<0.0?pow(saturate(dot(n,halfDirection)),48.0):0.0;
+        if(ownFlash) {ownFlashLit+=pulse-pulseBefore;ownFlashSpec+=specular-specularBefore+lights[i].color.rgb*amount*glint;}
+        else chromeGlint+=lights[i].color.rgb*amount*glint;
     }
     // Weapons 2.0, the BFG charging and firing or the plasma rifle firing
     // (c.weaponSheen, w 1): the blob or arcs hang ahead of the gun and above it, a light as any other, so that the
@@ -262,6 +271,6 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
     // w): soft over the side we see, a little more at its turning edges.
     if(!face) {
         vec3 bounced=vec3(weaponProbe[0].w,weaponProbe[1].w,weaponProbe[2].w)*(0.6+0.4*edge);
-        pulse+=bounced;ownWeaponFlash+=bounced;
+        pulse+=bounced;ownWeaponFlash+=bounced;ownFlashLit+=bounced;
     }
 }
