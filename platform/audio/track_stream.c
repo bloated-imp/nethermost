@@ -14,6 +14,11 @@
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
 #define STB_VORBIS_NO_PUSHDATA_API
+/* stb_vorbis uses alloca but includes its header only on Linux and Windows;
+   Apple's clang rejects the undeclared call (the Mac build). */
+#if !defined(_WIN32) && !defined(__linux__)
+#include <alloca.h>
+#endif
 #include "stb_vorbis.c"
 
 enum { KIND_FLAC, KIND_MP3, KIND_WAV, KIND_VORBIS };
