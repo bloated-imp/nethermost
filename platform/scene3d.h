@@ -67,8 +67,8 @@ struct Vertex { float x,y,z,u,v,light; unsigned mode; float red=0,green=0,blue=0
 // farFog, farFogRange: a distance fog as in Turok (DERPINFO farfog): colour (rgb), on (w); clear to range.x, solid from range.y.
 // rush: the fall's smear (rush.cpp, rush.glsl): the point it falls toward in screen uv, homogeneous (xyz), how hard (w).
 // eyes: the player's (eyes.cpp): lids closed (x, 0-1), dark (y, 0-1).
-struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4],weaponGlow[4],faceEyes[4],weaponSheen[4],bfgLight[4]; };
-static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==816,"Shader buffer layout");
+struct Uniforms { float eye[4],right[4],forward[4],up[4],projection[4],effects[4],materials[4],flashlightTint[4],fog[4],map[4],water[4],sun[4],bake[4],fx[4],fx2[4],texFilter[4],outdoor[4],haze[4],mood[4],weather[4],phobos[4],weatherTint[4],fallColor[4],settleColor[4],bank[4],bankColor[4],climate[4],beam[4],beamAim[4],beamLight[4],farFog[4],farFogRange[4],flicker[4][4],clearing[8][4],rush[4],eyes[4],levels[4],weaponGlow[4],faceEyes[4],weaponSheen[4],bfgLight[4],plasmaVent[4]; };
+static_assert(sizeof(Vertex)==68&&sizeof(Uniforms)==832,"Shader buffer layout");
 using Flash=doom_flash_t;
 // 63 lights keep the FlashSet uniform block under 4 KB and fit the 64-bit light masks.
 constexpr unsigned maxLights=63;
@@ -114,6 +114,11 @@ struct Settings {
     float plasmaLightStrength=1; // The same for the plasma rifle's blue light.
     float plasmaLightSize=1.6f;
     float plasmaLightFalloff=1.3f;
+    int variedFlashes=1; // Each shot's muzzle flame a shape and size of its own (the pistol so far); 0 the original every time.
+    float flashVariety=1; // How much they vary (0 none, 1 the default, 2 a lot).
+    float pistolLightStrength=1;
+    float launcherLightStrength=1; // The rocket launcher's flame on its front while it fires (0 none, 1 the default). // The pistol's muzzle flash on the gun and hand while it fires (0 none, 1 the default).
+    float plasmaVentGlow=1; // The plasma rifle's lit vent glowing blue on the gun round it (0 none, 1 the default).
     float flashBounce=1; // How much of the player's own muzzle flash comes back off nearby walls onto the relit weapon (0-3).
     int ps1PickupFlash=1; // The pickup flash tints only the 3D view, not the HUD or the sky, as on the PlayStation.
     float pickupFlashStrength=1; // How strong that flash is on the 3D view (0-3, 1 the palette's own).

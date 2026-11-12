@@ -38,6 +38,10 @@ vec3 behindGun() {
 // The player's own muzzle flash on the weapon, kept apart for the look over
 // a glowing floor (world.frag), where the room's light is replaced.
 vec3 ownWeaponFlash=vec3(0);
+// The plasma rifle's vent (below): its light on the paint and its glow over it,
+// kept apart from the rest so world.frag adds them after it greys and caps the
+// gun's light for its metal, which would turn the blue on olive paint green.
+vec3 ventLit=vec3(0),ventGlow=vec3(0);
 // The Chrome chaingun (world.frag): all the player's own muzzle flash gives the
 // gun, light and highlights, kept apart so the chrome's softened shading
 // doesn't halve it; and sharp glints of the lights round it along its tubes.
@@ -226,9 +230,12 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         float highlight=pow(saturate(dot(n,normalize(toLight+view))),shininess),mirror;
         // Looking toward the light, it also spills over the weapon.
         pulse+=lights[i].color.rgb*amount*1.2*weaponCreep(n,view,toLight,mirror);
-        specular+=lights[i].color.rgb*amount*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
+        // A matte own light (c.weaponSheen.w 0.5, the pistol): its own flash, out
+        // ahead of it and pointing away, puts no highlights on it either.
+        float glints=ownFlash&&c.weaponSheen.w>0.0?saturate(c.weaponSheen.w*2.0-1.0):1.0;
+        specular+=glints*lights[i].color.rgb*amount*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
-        specular+=lights[i].color.rgb*amount*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
+        specular+=glints*lights[i].color.rgb*amount*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
         specular+=lights[i].color.rgb*amount*0.12*skin*pow(saturate(dot(n,halfDirection)),4.0);
         float glint=c.weaponSheen.w<0.0?pow(saturate(dot(n,halfDirection)),48.0):0.0;
         if(ownFlash) {ownFlashLit+=pulse-pulseBefore;ownFlashSpec+=specular-specularBefore+lights[i].color.rgb*amount*glint;}
@@ -253,9 +260,31 @@ void weaponLight(Weapon w,float light,inout vec3 pulse,inout vec3 specular) {
         float mirror,creep=weaponCreep(n,view,toLight,mirror);
         pulse+=tint*(c.bfgLight.w+1.1*lit+rimGain*rim+1.2*creep);
         float highlight=pow(saturate(dot(n,normalize(toLight+view))),shininess);
-        specular+=tint*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
+        float shines=saturate(c.weaponSheen.w*2.0-1.0);   // 0.5: matte, no highlights (the pistol)
+        specular+=shines*tint*weaponGloss*polish*((highlight>0.5?1.6:highlight>0.2?0.6:0.0)+mirror);
         vec3 halfDirection=(toLight+view)/max(length(toLight+view),0.001);
-        specular+=tint*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
+        specular+=shines*tint*weaponGloss*upper*pow(saturate(dot(upperNormal,halfDirection)),upperShininess)*0.8;
+    }
+    // Weapons 2.0, the plasma rifle firing (c.plasmaVent): one of its flash
+    // frames lights the vent at the back of its casing, and that glow lights the
+    // gun round it and below it, most what turns toward it, fading over 34
+    // screen pixels from it (x, y: where it is on the 320 by 200 screen; z: its
+    // top row; w: how bright, 0 none). It opens below the beige casing, which
+    // stands above it out of its light. In 1/16 steps.
+    if(c.plasmaVent.w>0.0&&!face) {
+        vec2 at=vec2((vWorld.x+1.0)*160.0,(1.0-vWorld.y)*100.0),d=c.plasmaVent.xy-at;
+        d.y*=1.2;   // the screen's pixels are taller than wide
+        float near=saturate(1.0-length(d)/34.0)*smoothstep(c.plasmaVent.z-1.5,c.plasmaVent.z+0.5,at.y);near*=near;
+        vec3 toVent=normalize(c.right.xyz*d.x-c.up.xyz*d.y-c.forward.xyz*6.0);
+        float facing=saturate(dot(n,toVent));
+        // The plasma's own blue. The paint round the vent is olive and khaki,
+        // with little blue to give back: light alone turns teal or green on it,
+        // so most of the vent's shows as a glow over the paint.
+        const vec3 hue=vec3(0.2,0.32,1.0);
+        vec3 tint=hue*c.plasmaVent.w*round(near*16.0)/16.0;
+        ventLit+=tint*(0.15+0.9*facing);
+        float highlight=pow(saturate(dot(n,normalize(toVent+view))),shininess);
+        ventGlow+=hueSteps(tint*(0.22+0.25*facing+weaponGloss*(highlight>0.5?0.5:highlight>0.2?0.2:0.0)));
     }
     // Static-light redistribution may subtract its own baked tint,
     // but must not consume the independent light from the room.

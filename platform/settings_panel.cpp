@@ -601,10 +601,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         "4:3: the picture keeps the shape of an old TV, in the middle of the screen with black bars beside it; "
                         "at 240p it is 320 by 240 pixels, like the PlayStation's picture on a TV. The resolution then counts "
                         "the box, not the screen. Widescreen makes no difference in a 4:3 box."),
-                    slider("light_level","Light level",&s.lightLevel,0.1,1.2,0.05,
+                    slider("light_level","Light level",&s.lightLevel,0,1.2,0.05,
                         "How bright the world's own light is: 1.00 is DOOM's light levels, lower is darker, for a moodier, more "
                         "PlayStation-like dark. Lamps, sunlight through windows, muzzle flashes and the flashlight shine as before, "
-                        "so lit spots stand out more against the dark."),
+                        "so lit spots stand out more against the dark. 0: only those light anything; the rest is black."),
                     check("ps1_dither","PS1 dithering",&s.ps1Dither,
                         "The colours cut to the PlayStation's 15 bits through its fine 4x4 dither pattern, which breaks smooth "
                         "shading and fog into a grain. The pattern sits on the render's pixels, so it is coarser at lower "
@@ -696,6 +696,21 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                     slider("bfg_light_falloff","BFG light: falloff",&s.bfgLightFalloff,1,8,0.1,
                         "How sharply the BFG's light fades with distance from the muzzle. 1 an even fade, higher stays bright close to the muzzle and drops away quickly.",
                         [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    check("varied_flashes","Varied muzzle flashes",&s.variedFlashes,
+                        "Each shot's flame takes one of a few shapes bent from the original, and a size of its own, so no two "
+                        "shots look quite alike; the muzzle's light follows its size. The pistol and the shotgun so far. Off: the original flame every time.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    slider("flash_variety","Muzzle flash variety",&s.flashVariety,0,2,0.05,
+                        "How much the flames differ from shot to shot. 0 none, 1.00 the default, 2.00 a lot.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0&&d.variedFlashes!=0;}),
+                    slider("pistol_light_strength","Pistol light: strength",&s.pistolLightStrength,0,3,0.05,
+                        "How bright the pistol's muzzle flash is on the gun and hand as it fires, strongest at the muzzle and "
+                        "fading down the gun. 1.00 the default, 0 none.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    slider("launcher_light_strength","Rocket light: strength",&s.launcherLightStrength,0,3,0.05,
+                        "How bright the rocket launcher's flame is on its front as it fires, strongest at the muzzle and fading "
+                        "back down the launcher. 1.00 the default, 0 none.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
                     slider("plasma_light_strength","Plasma light: strength",&s.plasmaLightStrength,0,3,0.05,
                         "How bright the plasma rifle's blue light is on the gun at the muzzle while it fires. 1.00 the default, 0 none.",
                         [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
@@ -704,6 +719,10 @@ std::vector<OptionGroup> optionGroups(Settings &s) {
                         [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
                     slider("plasma_light_falloff","Plasma light: falloff",&s.plasmaLightFalloff,1,8,0.1,
                         "How sharply the plasma rifle's light fades with distance from the muzzle. 1 an even fade, higher stays bright close to the muzzle and drops away quickly.",
+                        [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
+                    slider("plasma_vent_glow","Plasma light: vent glow",&s.plasmaVentGlow,0,2,0.05,
+                        "On the flash frames that light the vent at the back of the plasma rifle, its blue glow on the metal around and "
+                        "below it. 0 none, 1.00 the default.",
                         [](const Settings &d){return d.weaponLighting!=0&&d.weapons2!=0;}),
                     check("bfg_melt","BFG Melt",&s.bfgMelt,
                         "A monster the BFG blows apart, by its ball or its spray of tracers, starts its gibs glowing in the projectile's "

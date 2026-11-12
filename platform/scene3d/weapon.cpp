@@ -16,8 +16,70 @@ namespace doom3d {
 // reaches over the stripe and the notch of the slot from the columns on each side.
 // The plasma rifle's (PLSF, plasma) hold the whole gun: there it is everything
 // from the first dark or tan run down, but for the blue of its vents.
-static std::vector<byte> flashBarrel(const Image &art,const byte *palette,bool plasma) {
+// The pistol's (PISF) hold its top, with the muzzle's light painted on it: the
+// dark metal under the flame, and the orange painted between its edges.
+// The shotgun's (SHTF) hold no gun: only the notch left open over its barrel,
+// the empty pixels reaching up into the flame from the middle of its bottom edge.
+enum FlashArt {FLASH_BARREL,FLASH_PLASMA,FLASH_PISTOL,FLASH_NOTCH};
+static FlashArt flashArt(int lump) {
+    const char *name=lumpinfo[lump].name;
+    return !strncmp(name,"PLSF",4)?FLASH_PLASMA:!strncmp(name,"PISF",4)?FLASH_PISTOL:!strncmp(name,"SHTF",4)?FLASH_NOTCH:FLASH_BARREL;
+}
+static std::vector<byte> flashBarrel(const Image &art,const byte *palette,FlashArt kind) {
     int w=art.width,h=art.height;
+    bool plasma=kind==FLASH_PLASMA;
+    if(kind==FLASH_NOTCH) {
+        std::vector<byte> notch((size_t)w*h,0);
+        auto open=[&](int x,int y) {return x>=0&&y>=0&&x<w&&y<h&&!art.pixels[2*((size_t)y*w+x)+1]&&!notch[(size_t)y*w+x];};
+        // From the bottom row's empty run nearest the middle, up through empty
+        // pixels with flame on both sides in their row.
+        std::vector<std::pair<int,int>> todo;
+        for(int d=0;d<w/2&&todo.empty();++d)for(int x:{w/2-d,w/2+d})if(open(x,h-1)&&todo.empty())todo.push_back({x,h-1});
+        auto enclosed=[&](int x,int y) {
+            bool left=false,right=false;
+            for(int k=x-1;k>=0&&!left;--k)left=art.pixels[2*((size_t)y*w+k)+1]!=0;
+            for(int k=x+1;k<w&&!right;++k)right=art.pixels[2*((size_t)y*w+k)+1]!=0;
+            return left&&right;
+        };
+        while(!todo.empty()) {
+            auto [x,y]=todo.back();todo.pop_back();
+            if(!open(x,y)||!enclosed(x,y))continue;
+            notch[(size_t)y*w+x]=1;
+            todo.push_back({x-1,y});todo.push_back({x+1,y});todo.push_back({x,y-1});todo.push_back({x,y+1});
+        }
+        return notch;
+    }
+    if(kind==FLASH_PISTOL) {
+        auto color=[&](int x,int y) {return &palette[art.pixels[2*((size_t)y*w+x)]*3];};
+        auto opaque=[&](int x,int y) {return art.pixels[2*((size_t)y*w+x)+1]!=0;};
+        // Metal: dark, or dull, not the flame's red, yellow and white.
+        auto metal=[&](int x,int y) {
+            if(!opaque(x,y))return false;
+            const byte *c=color(x,y);int top=std::max({c[0],c[1],c[2]});
+            return top<110&&!(c[0]>=100&&c[1]<0.55f*c[0]);
+        };
+        // The gun starts at the first row with a run of metal across its middle.
+        int first=-1;
+        for(int y=0;y<h&&first<0;++y) {
+            int run=0;
+            for(int x=w/4;x<w*3/4;++x)if(metal(x,y))++run;
+            if(run>=2)first=y;
+        }
+        std::vector<byte> gun((size_t)w*h,0);
+        if(first<0)return gun;
+        for(int y=first;y<h;++y) {
+            int left=-1,right=-1;
+            for(int x=0;x<w;++x)if(metal(x,y)) {if(left<0)left=x;right=x;}
+            if(left<0)continue;
+            for(int x=left;x<=right;++x) {
+                if(!opaque(x,y))continue;
+                const byte *c=color(x,y);
+                // Between its edges, all but the flame's white core is gun.
+                if(std::min({c[0],c[1],c[2]})<150)gun[(size_t)y*w+x]=1;
+            }
+        }
+        return gun;
+    }
     if(plasma) {
         auto color=[&](int x,int y) {return &palette[art.pixels[2*((size_t)y*w+x)]*3];};
         auto opaque=[&](int x,int y) {return art.pixels[2*((size_t)y*w+x)+1]!=0;};
@@ -71,6 +133,14 @@ static const unsigned char *chaingunShape(int lump) {
     const Image &art=lumpImage(lump,false);
     return known[lump]=doom_chaingun_shape(lumpinfo[lump].name,art.width,art.height,art.pixels.data());
 }
+// Weapons 2.0: the displayed player's shotgun is in its reload frames (world.frag
+// shades them more strongly: their paint is kept, which leaves the light subtle).
+bool shotgunPumpingNow() {
+    if(!settings.weapons2||!settings.weaponLighting||!heldWeaponIs("SHTG"))return false;
+    const pspdef_t &gun=players[displayplayer].psprites[0];
+    const spriteframe_t &frame=sprites[gun.state->sprite].spriteframes[gun.state->frame&FF_FRAMEMASK];
+    return lumpinfo[firstspritelump+frame.lump[0]].name[4]!='A';
+}
 // The displayed player's chaingun is up and drawn in chrome (world.frag).
 bool chromeChaingunNow() {
     if(!chromeChaingun()||!heldWeaponIs("CHGG"))return false;
@@ -94,19 +164,71 @@ static Image &weaponImage(int lump,bool keepPaint=false,bool angryEyes=false,boo
     const unsigned char *drawn=!face&&chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGG",4)?chaingunShape(lump):nullptr;
     bool chrome=drawn||(!face&&barrelOnly&&chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGF",4));
     if(chrome)keepPaint=true;
+    // Weapons 2.0: the shotgun's reload frames are a hand close up, its fingers
+    // drawn only by their painted shading; taken out, the hand goes to mush.
+    // Its shape then comes from the outline alone: from the paint, the sleeve's
+    // dither would turn every speckle its own way and glitter.
+    bool pumping=!face&&settings.weapons2&&!strncmp(lumpinfo[lump].name,"SHTG",4)&&lumpinfo[lump].name[4]!='A';
+    if(pumping)keepPaint=true;
+    // The pistol's top in its flash frame keeps the muzzle's light painted on it.
+    if(!face&&barrelOnly&&!strncmp(lumpinfo[lump].name,"PISF",4))keepPaint=true;
     int key=chrome?INT_MIN/2-(4<<24)-lump*2-(barrelOnly?1:0):barrelOnly?INT_MIN/2-(2<<24)-lump*2-(keepPaint?1:0):angryEyes?INT_MIN/2-(1<<24)-lump:INT_MIN/2-lump*2-(keepPaint?1:0); auto found=images.find(key); if(found!=images.end()) return found->second;
     const Image &source=lumpImage(lump,false);
     int w=source.width,h=source.height,stride=2*w+2;
     const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
     std::vector<byte> art=source.pixels;
     if(barrelOnly) {
-        auto barrel=flashBarrel(source,palette,!strncmp(lumpinfo[lump].name,"PLSF",4));
+        auto barrel=flashBarrel(source,palette,flashArt(lump));
         for(size_t i=0;i<barrel.size();++i)if(!barrel[i])art[2*i+1]=0;
     }
     auto maps=doom_weapon_delight(w,h,art.data(),palette);
     if(keepPaint) maps.pixels=art;
     if(drawn) {maps.normals.assign(drawn,drawn+(size_t)w*h*2);maps.smooth=maps.normals;}
-    else if(chrome) maps.normals=maps.smooth;   // the flash's ring: rounded by its outline, its paint no bumps
+    else if(chrome||pumping) maps.normals=maps.smooth;
+    // The rocket launcher's front in its flash frames: id painted the flame's
+    // light on it as a thin stripe round its ring, which as gloss would take every
+    // light as a dotted hard line. Its own muzzle light (gunBlastLight) lights it.
+    if(barrelOnly&&!strncmp(lumpinfo[lump].name,"MISF",4))std::fill(maps.gloss.begin(),maps.gloss.end(),0);
+    // Weapons 2.0, the plasma rifle: its beige casing is ridged in one- and
+    // two-pixel bands, which the broad blur the normals are read through
+    // (weapon_lighting.h) smooths away, so it relit flat. Its relief comes from
+    // the paint through a fine blur instead, tilting the casing's rounded
+    // shape, so each ridge catches the light; the black metal keeps its own.
+    if(!face&&settings.weapons2&&(!strncmp(lumpinfo[lump].name,"PLSG",4)||!strncmp(lumpinfo[lump].name,"PLSF",4))) {
+        const float gain=10;   // how far each ridge tilts
+        auto opaque=[&](int x,int y){return x>=0&&y>=0&&x<w&&y<h&&art[2*((size_t)y*w+x)+1];};
+        auto luma=[&](int x,int y){const byte *c=palette+art[2*((size_t)y*w+x)]*3;return (0.299f*c[0]+0.587f*c[1]+0.114f*c[2])/255;};
+        std::vector<float> relief((size_t)w*h,0);
+        for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
+            if(!opaque(x,y))continue;
+            float sum=0,weight=0;static const float tap[3]={1,2,1};
+            for(int j=-1;j<=1;++j)for(int k=-1;k<=1;++k)if(opaque(x+k,y+j)){float s=tap[j+1]*tap[k+1];sum+=luma(x+k,y+j)*s;weight+=s;}
+            relief[(size_t)y*w+x]=sum/weight;
+        }
+        auto height=[&](int x,int y,int fx,int fy){return opaque(x,y)?relief[(size_t)y*w+x]:relief[(size_t)fy*w+fx];};
+        for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
+            size_t i=(size_t)y*w+x;
+            if(!opaque(x,y)||maps.metal[i]>=128)continue;
+            float sx=maps.smooth[2*i]/255.0f*2-1,sy=maps.smooth[2*i+1]/255.0f*2-1,sz=std::sqrt(std::max(0.0f,1-sx*sx-sy*sy));
+            float gx=(height(x+1,y,x,y)-height(x-1,y,x,y))*gain,gy=(height(x,y+1,x,y)-height(x,y-1,x,y))*gain;
+            float nx=sx-gx*sz,ny=sy-gy*sz,nz=sz,length=std::sqrt(nx*nx+ny*ny+nz*nz);
+            maps.normals[2*i]=(byte)std::lround(std::clamp(nx/length*0.5f+0.5f,0.0f,1.0f)*255);
+            maps.normals[2*i+1]=(byte)std::lround(std::clamp(ny/length*0.5f+0.5f,0.0f,1.0f)*255);
+        }
+    }
+    // The sleeve under the reloading hand: dithered grey cloth, which the art's
+    // grey marks as metal and gloss would make glitter. Grey in a grey
+    // neighbourhood is cloth; the barrels' grey highlights sit in black metal.
+    if(pumping) {
+        auto luma=[&](int x,int y){size_t i=(size_t)y*w+x;const byte *c=palette+art[2*i]*3;return art[2*i+1]?0.299f*c[0]+0.587f*c[1]+0.114f*c[2]:0.0f;};
+        for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
+            size_t i=(size_t)y*w+x;const byte *c=palette+art[2*i]*3;
+            if(!art[2*i+1]||std::max({c[0],c[1],c[2]})-std::min({c[0],c[1],c[2]})>24)continue;
+            float sum=0;int n=0;
+            for(int j=-3;j<=3;++j)for(int k=-3;k<=3;++k)if(y+j>=0&&y+j<h&&x+k>=0&&x+k<w){sum+=luma(x+k,y+j);++n;}
+            if(sum/n>35)maps.gloss[i]=0;
+        }
+    }   // the flash's ring: rounded by its outline, its paint no bumps
     // Row 16, the five pixels of each squinting eye, in every blood level; the
     // god face's own yellows, near white toward the outside as its eyes are.
     if(angryEyes&&w==24&&h>16) {
@@ -197,9 +319,133 @@ static Image &flashFlame(int lump) {
     const Image &source=lumpImage(lump,false);
     const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
     std::vector<byte> flame=source.pixels;
-    auto barrel=flashBarrel(source,palette,!strncmp(lumpinfo[lump].name,"PLSF",4));
+    auto barrel=flashBarrel(source,palette,flashArt(lump));
     for(size_t i=0;i<barrel.size();++i)if(barrel[i])flame[2*i+1]=0;
     return images.emplace(key,upload(source.width,source.height,flame.data(),source.left,source.top)).first->second;
+}
+// Weapons 2.0, Varied muzzle flashes (F4 Nethermost): each shot's flame takes
+// one of a few shapes made from the original and a size of its own, so no two
+// shots look quite alike. The pistol's so far. Shape 0 is the original; the
+// others flicker as a flame does, its body left where it is: half are its mirror
+// image, the outermost pixels of its outline trimmed in some places and grown
+// out in others, and its tongues reach a little further one way than another.
+// Only the flame's own pixels and colors, never over the gun, and the
+// renderer's own dice pick them, not the game's.
+static const int FLAME_SHAPES=8;
+static bool variedFlame(int lump) {
+    const char *name=lumpinfo[lump].name;
+    return settings.variedFlashes&&settings.weapons2&&settings.weaponLighting&&(!strncmp(name,"PISF",4)||!strncmp(name,"SHTF",4));
+}
+struct FlameShot {int shape=0;float wide=1,tall=1,light=1;};
+static FlameShot flameShot;   // the shot now showing
+// How much the flames vary, in quarter steps (the shapes are made per step).
+static int flameVariety() {return (int)std::lround(std::clamp(settings.flashVariety,0.0f,2.0f)*4);}
+// A new shot: the flash's state entered afresh (or its tics wound back up), not
+// the next frame of the same flash (the shotgun's two).
+static void nextFlameShot(const pspdef_t &flash) {
+    static const state_t *last=nullptr;static int lastTics=0;
+    bool following=last&&flash.state==&states[last->nextstate];
+    bool fresh=flash.state&&!following&&(flash.state!=last||flash.tics>lastTics);
+    last=flash.state;lastTics=flash.tics;
+    if(!fresh)return;
+    static std::mt19937 dice{std::random_device{}()};
+    std::uniform_real_distribution<float> unit(0,1);
+    float variety=flameVariety()/4.0f;
+    int shape=(int)(unit(dice)*FLAME_SHAPES)%FLAME_SHAPES;
+    if(shape==flameShot.shape)shape=(shape+1+(int)(unit(dice)*(FLAME_SHAPES-1)))%FLAME_SHAPES;   // never the same twice running
+    flameShot.shape=variety>0?shape:0;
+    flameShot.wide=1+variety*(unit(dice)*0.08f-0.04f);
+    flameShot.tall=1+variety*(unit(dice)*0.16f-0.08f);
+    // A bigger flame lights the gun a little more.
+    flameShot.light=std::clamp(1+1.2f*(flameShot.wide*flameShot.tall-1),0.8f,1.2f);
+}
+// How much the shot now showing lights the gun, against the original flame's (1).
+float variedFlashLight() {
+    const pspdef_t &flash=players[displayplayer].psprites[1];
+    if(!flash.state)return 1;
+    const spriteframe_t &frame=sprites[flash.state->sprite].spriteframes[flash.state->frame&FF_FRAMEMASK];
+    return variedFlame(firstspritelump+frame.lump[0])?flameShot.light:1.0f;
+}
+// The muzzle in a flash frame: the middle of the gun's top row in it, or the
+// middle of the flame's bottom.
+static void flameAnchor(const Image &art,const std::vector<byte> &gun,float &ax,float &ay) {
+    int w=art.width,h=art.height,top=-1;
+    for(int y=0;y<h&&top<0;++y)for(int x=0;x<w;++x)if(gun[(size_t)y*w+x]){top=y;break;}
+    if(top>=0) {
+        float sum=0;int n=0;
+        for(int x=0;x<w;++x)if(gun[(size_t)top*w+x]){sum+=x+0.5f;++n;}
+        ax=sum/n;ay=(float)top;return;
+    }
+    ax=w/2.0f;ay=(float)h;
+}
+// The flame of a flash frame in one of its shapes, with a margin round it for
+// what grows out; anchorX/Y: the muzzle in it.
+static const int FLAME_MARGIN=6;
+static Image &flameShape(int lump,int shape,float &anchorX,float &anchorY) {
+    const Image &source=lumpImage(lump,false);
+    const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
+    static std::map<int,std::pair<float,float>> anchors;
+    auto gun=flashBarrel(source,palette,flashArt(lump));
+    auto at=anchors.find(lump);
+    if(at==anchors.end()) {float ax,ay;flameAnchor(source,gun,ax,ay);at=anchors.emplace(lump,std::make_pair(ax,ay)).first;}
+    anchorX=at->second.first+FLAME_MARGIN;anchorY=at->second.second+FLAME_MARGIN;
+    int variety=flameVariety();
+    int key=INT_MIN/2-(5<<24)-lump*128-variety*8-shape; auto found=images.find(key); if(found!=images.end()) return found->second;
+    int w=source.width,h=source.height,W=w+2*FLAME_MARGIN,H=h+2*FLAME_MARGIN;
+    float ax=at->second.first,ay=at->second.second,amount=variety/4.0f;
+    auto flame=[&](int x,int y) {return x>=0&&y>=0&&x<w&&y<h&&source.pixels[2*((size_t)y*w+x)+1]&&!gun[(size_t)y*w+x];};
+    auto gunAt=[&](int ox,int oy) {int x=ox-FLAME_MARGIN,y=oy-FLAME_MARGIN;return x>=0&&y>=0&&x<w&&y<h&&gun[(size_t)y*w+x];};
+    float reach=1;
+    for(int y=0;y<h;++y)for(int x=0;x<w;++x)if(flame(x,y))reach=std::max(reach,std::hypot(x+0.5f-ax,y+0.5f-ay));
+    // Each shape's flicker, the same every time it is made.
+    std::mt19937 dice(0x9e3779b9u*(unsigned)(shape+1)+(unsigned)lump);
+    std::uniform_real_distribution<float> unit(-1,1);
+    bool mirror=shape%2==1;
+    float lobes=2+(int)(1.5f*(unit(dice)+1)),lobeAmount=amount*(0.025f+0.03f*std::abs(unit(dice))),lobePhase=3.14159f*unit(dice);
+    float edge=1.6f*amount,k1=3+(int)(2*(unit(dice)+1)),p1=3.14159f*unit(dice),k2=7+(int)(3*(unit(dice)+1)),p2=3.14159f*unit(dice);
+    std::vector<byte> out((size_t)W*H*2,0);
+    // The body: the original, mirrored about the muzzle for half of them, its
+    // tongues reaching a little further one way than another.
+    for(int oy=0;oy<H;++oy)for(int ox=0;ox<W;++ox) {
+        if(gunAt(ox,oy))continue;   // the gun stays clear
+        float px=ox-FLAME_MARGIN+0.5f,py=oy-FLAME_MARGIN+0.5f;
+        float rx=px-ax,ry=py-ay,r=std::hypot(rx,ry),t=std::min(1.0f,r/reach);
+        float sx=px,sy=py;
+        if(shape>0&&r>0.5f) {
+            float grow=1+lobeAmount*t*std::sin(lobes*std::atan2(ry,rx)+lobePhase);
+            sx=ax+rx/grow;sy=ay+ry/grow;
+            if(mirror)sx=2*ax-sx;
+        }
+        int ix=(int)std::floor(sx),iy=(int)std::floor(sy);
+        // Mirrored, the flame hugging the gun may not meet its other side: there the original's own pixel.
+        if(!flame(ix,iy)&&mirror&&flame(ox-FLAME_MARGIN,oy-FLAME_MARGIN)&&t<0.45f) {ix=ox-FLAME_MARGIN;iy=oy-FLAME_MARGIN;}
+        if(!flame(ix,iy))continue;
+        size_t from=2*((size_t)iy*w+ix),to=2*((size_t)oy*W+ox);
+        out[to]=source.pixels[from];out[to+1]=source.pixels[from+1];
+    }
+    // The outline flickers: away from the muzzle its outermost pixels go in some
+    // directions and grow by a pixel or two (the edge's own colors) in others.
+    if(shape>0&&edge>0) {
+        std::vector<byte> before=out;
+        for(int oy=0;oy<H;++oy)for(int ox=0;ox<W;++ox) {
+            if(gunAt(ox,oy))continue;
+            float rx=ox+0.5f-(ax+FLAME_MARGIN),ry=oy+0.5f-(ay+FLAME_MARGIN),t=std::min(1.0f,std::hypot(rx,ry)/reach);
+            if(t<0.4f)continue;
+            float a=std::atan2(ry,rx),n=(0.6f*std::sin(k1*a+p1)+0.4f*std::sin(k2*a+p2))*edge*(t-0.4f)/0.6f;
+            bool here=before[2*((size_t)oy*W+ox)+1]!=0;
+            // How far to the outline: the nearest pixel of the other kind, within 2.
+            int nearest=3;size_t nearestAt=0;
+            for(int j=-2;j<=2;++j)for(int k=-2;k<=2;++k) {
+                int x=ox+k,y=oy+j;int d=std::max(std::abs(j),std::abs(k));
+                bool there=x>=0&&y>=0&&x<W&&y<H&&before[2*((size_t)y*W+x)+1];
+                if(there!=here&&d<nearest) {nearest=d;nearestAt=2*((size_t)y*W+x);}
+            }
+            size_t to=2*((size_t)oy*W+ox);
+            if(here&&n<0&&nearest<=-n)out[to+1]=0;
+            else if(!here&&n>0&&nearest<=n) {out[to]=before[nearestAt];out[to+1]=before[nearestAt+1];}
+        }
+    }
+    return images.emplace(key,upload(W,H,out.data(),source.left+FLAME_MARGIN,source.top+FLAME_MARGIN)).first->second;
 }
 // The BFG's green on the gun, 0 to 1. The game's muzzle flash only comes when the
 // ball leaves, but its flames sit on the gun from the start of the charge: they
@@ -237,6 +483,55 @@ static float plasmaBlast() {
     return std::min(amount,1.0f);
 }
 static const float plasmaBlue[3]={0.62f,0.72f,1.0f};   // the arcs' pale blue; a purer one only darkens the tan paint
+// The pistol's muzzle flash on the gun and hand, 0 to 1: full as its flash frame
+// shows, fading over it; and the screen row of the gun's top in that frame.
+static float flashMuzzleRow();
+static float pistolBlast() {
+    const pspdef_t &flash=players[displayplayer].psprites[1];
+    if(!flash.state||flash.state->tics<=0)return 0;
+    const spriteframe_t &frame=sprites[flash.state->sprite].spriteframes[flash.state->frame&FF_FRAMEMASK];
+    if(strncmp(lumpinfo[firstspritelump+frame.lump[0]].name,"PISF",4))return 0;
+    float through=std::clamp(1-(flash.tics-renderFraction)/(float)flash.state->tics,0.0f,1.0f);
+    return (1-0.7f*through)*(variedFlame(firstspritelump+frame.lump[0])?flameShot.light:1.0f);
+}
+static const float pistolOrange[3]={1.0f,0.62f,0.32f};
+// The rocket launcher's flame on its front, 0 to 1, as its four flash frames
+// grow and die away.
+static float launcherBlast() {
+    const pspdef_t &flash=players[displayplayer].psprites[1];
+    if(!flash.state||flash.state->tics<=0)return 0;
+    const spriteframe_t &frame=sprites[flash.state->sprite].spriteframes[flash.state->frame&FF_FRAMEMASK];
+    const char *name=lumpinfo[firstspritelump+frame.lump[0]].name;
+    if(strncmp(name,"MISF",4))return 0;
+    float through=std::clamp(1-(flash.tics-renderFraction)/(float)flash.state->tics,0.0f,1.0f);
+    static const float start[4]={0.5f,0.85f,1.0f,0.7f},end[4]={0.85f,1.0f,0.7f,0.25f};
+    int at=std::clamp(name[4]-'A',0,3);
+    return start[at]+(end[at]-start[at])*through;
+}
+static const float launcherOrange[3]={1.0f,0.55f,0.25f};
+// The glowing vent at the back of the plasma rifle, which one of its two flash
+// frames (PLSFB) paints lit in the middle of the casing's lower edge: the blue
+// the flash split leaves glowing (flashBarrel) low in the frame's middle. Its
+// middle in the frame, its top row and how many pixels glow, per flash frame; none 0.
+struct Vent {float x,y,top;int glowing;};
+static Vent ventOf(int lump) {
+    static std::map<int,Vent> known;
+    auto found=known.find(lump);if(found!=known.end())return found->second;
+    const Image &art=lumpImage(lump,false);
+    const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
+    auto gun=flashBarrel(art,palette,FLASH_PLASMA);
+    Vent vent={0,0,1e9f,0};
+    // The middle third, lower part: the arcs reach down the frame's sides.
+    for(int y=art.height*3/5;y<art.height;++y)for(int x=art.width/3;x<art.width*2/3;++x) {
+        size_t i=(size_t)y*art.width+x;
+        if(!art.pixels[2*i+1]||gun[i])continue;
+        const byte *c=palette+art.pixels[2*i]*3;
+        if(std::max({c[0],c[1],c[2]})<120)continue;
+        vent.x+=x+0.5f;vent.y+=y+0.5f;vent.top=std::min(vent.top,(float)y);++vent.glowing;
+    }
+    if(vent.glowing<3)vent={0,0,0,0};else {vent.x/=vent.glowing;vent.y/=vent.glowing;}
+    return known[lump]=vent;
+}
 // The held gun's own light on itself (weapon.glsl), for the guns with one: its
 // color now, and its reach, fade, the screen row of its muzzle (of 200) and how
 // much of it reaches even what faces away.
@@ -245,9 +540,15 @@ bool gunBlastLight(float color[3],float shape[4]) {
     if(heldWeaponIs("BFGG")) {
         amount=bfgBlast();hue=bfgGreen;strength=settings.bfgLightStrength;
         shape[0]=settings.bfgLightSize;shape[1]=settings.bfgLightFalloff;shape[2]=140;shape[3]=0.15f;     // the flames hide the gun's top rows
+    } else if(heldWeaponIs("PISG")) {
+        amount=pistolBlast();hue=pistolOrange;strength=settings.pistolLightStrength;power=2.2f;
+        shape[0]=1.2f;shape[1]=1.6f;shape[2]=flashMuzzleRow();shape[3]=0.3f;
+    } else if(heldWeaponIs("MISG")) {
+        amount=launcherBlast();hue=launcherOrange;strength=settings.launcherLightStrength;power=1.8f;
+        shape[0]=1.1f;shape[1]=1.8f;shape[2]=flashMuzzleRow();shape[3]=0.2f;
     } else if(heldWeaponIs("PLSG")) {
         amount=plasmaBlast();hue=plasmaBlue;strength=settings.plasmaLightStrength;power=3.5f;     // the part next to its muzzle is black
-        shape[0]=settings.plasmaLightSize;shape[1]=settings.plasmaLightFalloff;shape[2]=112;shape[3]=0.4f;
+        shape[0]=settings.plasmaLightSize;shape[1]=settings.plasmaLightFalloff;shape[2]=112;shape[3]=0.1f;
     }
     if(amount<=0)return false;
     for(int c=0;c<3;++c)color[c]=hue[c]*amount*power*strength;
@@ -480,6 +781,57 @@ int lumpOfPatch(const void *patch) {
     for(int i=0;i<numlumps&&lump<0;++i)if(lumpcache[i]==patch)lump=i;
     return known[patch]=lump;
 }
+// The screen row (of 200) where the gun's top shows in its flash frame (the
+// pistol's, the rocket launcher's): the gun's first rows there are its muzzle.
+static float flashMuzzleRow() {
+    const player_t &me=players[displayplayer];
+    const pspdef_t &flash=me.psprites[1];
+    if(!flash.state)return 120;
+    const spriteframe_t &frame=sprites[flash.state->sprite].spriteframes[flash.state->frame&FF_FRAMEMASK];
+    int lump=firstspritelump+frame.lump[0];
+    const Image &art=lumpImage(lump,false);
+    static std::map<int,int> tops;
+    auto found=tops.find(lump);
+    if(found==tops.end()) {
+        const byte *palette=(const byte*)W_CacheLumpName((char*)"PLAYPAL",PU_CACHE);
+        auto gun=flashBarrel(art,palette,flashArt(lump));
+        int top=art.height;
+        for(int y=0;y<art.height&&top==art.height;++y)for(int x=0;x<art.width;++x)if(gun[(size_t)y*art.width+x]){top=y;break;}
+        found=tops.emplace(lump,top).first;
+    }
+    float shiftY=0;
+    if(ticSaved&&oldWeaponSaved&&me.psprites[0].state) {
+        float dx=units(oldWeaponX)-units(me.psprites[0].sx),dy=units(oldWeaponY)-units(me.psprites[0].sy);
+        if(std::abs(dx)<64&&std::abs(dy)<64)shiftY=dy*(1-renderFraction);
+    }
+    return viewwindowy+viewheight/2.0f-100+units(flash.sy)+shiftY-art.top+found->second;
+}
+// Weapons 2.0: that vent's light on the casing around it (weapon.glsl): where
+// it is on the 320 by 200 screen, how far its light reaches (screen pixels) and
+// how strong it is now; false when no vent glows.
+bool plasmaVentLight(float vent[4]) {
+    vent[0]=vent[1]=vent[2]=vent[3]=0;
+    if(!settings.weapons2||!settings.weaponLighting||!heldWeaponIs("PLSG"))return false;
+    const player_t &me=players[displayplayer];
+    const pspdef_t &arcs=me.psprites[1];
+    if(!arcs.state)return false;
+    const spriteframe_t &frame=sprites[arcs.state->sprite].spriteframes[arcs.state->frame&FF_FRAMEMASK];
+    int lump=firstspritelump+frame.lump[0];
+    if(strncmp(lumpinfo[lump].name,"PLSF",4))return false;
+    Vent at=ventOf(lump);
+    if(!at.glowing)return false;
+    const Image &art=lumpImage(lump,false);
+    float shiftX=0,shiftY=0;   // as weaponDraws places it between tics
+    if(ticSaved&&oldWeaponSaved&&me.psprites[0].state) {
+        float dx=units(oldWeaponX)-units(me.psprites[0].sx),dy=units(oldWeaponY)-units(me.psprites[0].sy);
+        if(std::abs(dx)<64&&std::abs(dy)<64) {shiftX=dx*(1-renderFraction);shiftY=dy*(1-renderFraction);}
+    }
+    vent[0]=units(arcs.sx)+shiftX-art.left+at.x;
+    vent[1]=viewwindowy+viewheight/2.0f-100+units(arcs.sy)+shiftY-art.top+at.y;
+    vent[2]=vent[1]-at.y+at.top;   // its top row: the casing above it is out of its light
+    vent[3]=2.2f*settings.plasmaLightStrength*settings.plasmaVentGlow*std::min(1.0f,at.glowing/12.0f);
+    return vent[3]>0;
+}
 std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
     std::vector<SpriteDraw> draws;
     player_t *player=&players[displayplayer];
@@ -502,8 +854,12 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
         // launcher with them, the plasma rifle's the whole gun, the chaingun's (in
         // chrome) the ring at its barrels' end; that part is lit as the rest of the gun is.
         bool flameOnly=bright&&settings.weaponLighting&&settings.weapons2&&(!strncmp(lumpinfo[lump].name,"MISF",4)||!strncmp(lumpinfo[lump].name,"PLSF",4)||
+            !strncmp(lumpinfo[lump].name,"PISF",4)||
             (chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGF",4)));
-        Image &image=flameOnly?flashFlame(lump):relit?weaponImage(lump):lumpImage(lump,false);
+        bool varied=bright&&variedFlame(lump);
+        if(varied)nextFlameShot(psp);
+        float anchorX=0,anchorY=0;
+        Image &image=varied?flameShape(lump,flameShot.shape,anchorX,anchorY):flameOnly?flashFlame(lump):relit?weaponImage(lump):lumpImage(lump,false);
         float x=units(psp.sx)+shiftX-image.left,y=viewwindowy+viewheight/2.0f-100+units(psp.sy)+shiftY-image.top;
         if(flameOnly) {
             Image &barrel=weaponImage(lump,false,false,true);
@@ -511,7 +867,8 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
             float lit=sunLightAt(camera.eye[0],camera.eye[1],sector,flowLightAt(camera.eye[0],camera.eye[1],sector,
                     seamLightAt(camera.eye[0],camera.eye[1],sector,lighting(sector))));
             std::vector<Vertex> quad;
-            screenQuad(quad,x/160-1,1-y/100,barrel.width/160.0f,barrel.height/100.0f,0,0,(float)barrel.width,(float)barrel.height,lit,
+            float bx=varied?x+FLAME_MARGIN:x,by=varied?y+FLAME_MARGIN:y;   // the varied flame's image has a margin round the frame
+            screenQuad(quad,bx/160-1,1-by/100,barrel.width/160.0f,barrel.height/100.0f,0,0,(float)barrel.width,(float)barrel.height,lit,
                 MODE_SCREEN|MODE_SPRITE|MODE_RELIT);
             lightScreenQuad(quad,camera,player,lit,true,false);
             draws.push_back({&barrel,std::move(quad)});
@@ -530,6 +887,11 @@ std::vector<SpriteDraw> weaponDraws(const Uniforms &camera) {
         if(relit&&viewwindowy+viewheight<SCREENHEIGHT&&chromeChaingun()&&!strncmp(lumpinfo[lump].name,"CHGG",4)&&cut>=1&&cut+1<image.height) {
             screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,cut/100.0f,u0,0,u1,cut,light,mode);
             screenQuad(weapon,x/160-1,1-(bottom-1)/100,image.width/160.0f,1/100.0f,u0,cut-1,u1,cut,light,mode);
+        }
+        else if(varied) {
+            // This shot's size, about the muzzle.
+            float left=x+anchorX*(1-flameShot.wide),top=y+anchorY*(1-flameShot.tall);
+            screenQuad(weapon,left/160-1,1-top/100,image.width*flameShot.wide/160.0f,image.height*flameShot.tall/100.0f,u0,0,u1,image.height,light,mode);
         }
         else screenQuad(weapon,x/160-1,1-y/100,image.width/160.0f,image.height/100.0f,u0,0,u1,image.height,light,mode);
         if(bright)for(auto &vertex:weapon)vertex.lampTint=fullbrightTint;   // the gun firing: the Light level leaves it alone

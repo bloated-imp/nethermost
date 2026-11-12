@@ -625,16 +625,18 @@ FrameView prepareFrame(int w,int h) {
             bool blast=settings.weapons2&&heldWeaponIs("SHTG")&&ownMuzzleFlash(reach,strength,color);
             float gun[3]={},shape[4]={};
             bool own=settings.weapons2&&gunBlastLight(gun,shape);
-            for(int c=0;c<3;++c)camera.weaponSheen[c]=blast?color[c]*strength:gun[c];
+            for(int c=0;c<3;++c)camera.weaponSheen[c]=blast?color[c]*strength*variedFlashLight():gun[c];
             for(int c=0;c<4;++c)camera.bfgLight[c]=shape[c];   // its reach and fade down the gun, and where the muzzle is (weapon.glsl)
-            camera.weaponSheen[3]=own?1.0f:chromeChaingunNow()?-1.0f:0.0f;   // w: a light of its own (weapon.glsl), or -1 the Chrome chaingun (world.frag)
-            if(camera.weaponSheen[3]<0){camera.bfgLight[0]=settings.chromeFlash;camera.bfgLight[1]=settings.chromeShine;}   // the Chrome chaingun's flash and shine (world.frag)
+            camera.weaponSheen[3]=own?(heldWeaponIs("PISG")||heldWeaponIs("MISG")?0.5f:1.0f):chromeChaingunNow()?-1.0f:0.0f;   // w: a light of its own (weapon.glsl; 0.5 matte: the pistol's and the launcher's flames are ahead of them, pointing away), or -1 the Chrome chaingun (world.frag)
+            if(camera.weaponSheen[3]<0){camera.bfgLight[0]=settings.chromeFlash;camera.bfgLight[1]=settings.chromeShine;}
+            plasmaVentLight(camera.plasmaVent);
+            if(shotgunPumpingNow())camera.bfgLight[0]=2.5f;   // the shotgun's reload shaded more strongly (world.frag)   // the plasma rifle's glowing vent on the casing round it (weapon.glsl)   // the Chrome chaingun's flash and shine (world.frag)
         }
         camera.levels[2]=settings.weapons2&&settings.weaponMaterials?settings.weaponMetalShine:-1.0f;   // the relit weapon's materials (weapon.glsl)
         for(int c=0;c<3;++c)camera.weaponGlow[c]=weaponGlowColor[c];   // last frame's: the weapon's probe runs after this
         camera.weaponGlow[3]=settings.faceEars?settings.faceEarsStrength:0.0f;   // the relit face's ears (world.frag)
         camera.faceEyes[0]=settings.godEyes?settings.godEyesBright:0;camera.faceEyes[1]=settings.godEyesLight;camera.faceEyes[2]=settings.godEyesSize;camera.faceEyes[3]=settings.godEyesFalloff;   // the god face's eyes (world.frag)
-        camera.levels[0]=settings.lightLevel;   // the sectors' light levels scaled (world.frag)
+        camera.levels[0]=std::max(settings.lightLevel,0.0001f);   // never 0: 0 there means unscaled   // the sectors' light levels scaled (world.frag)
         for(int c=0;c<3;++c)camera.fx[1+c]=skyTint[c];
         // Outdoor haze in the sky's horizon color (Game_Sun), with the fog.
         for(int c=0;c<3;++c)camera.haze[c]=horizon[c]*camera.mood[0]*camera.mood[1+c];

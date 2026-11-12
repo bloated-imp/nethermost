@@ -411,6 +411,9 @@ void muzzleFlash(mobj_t *source,int weapon,int projectile);
 bool ownMuzzleFlash(float &radius,float &strength,std::array<float,3> &color);
 bool heldWeaponIs(const char *sprite);
 bool chromeChaingunNow();
+bool shotgunPumpingNow();
+float variedFlashLight();
+bool plasmaVentLight(float vent[4]);
 bool gunBlastLight(float color[3],float shape[4]);
 void sparkFlash(float x,float y,float z,float radius,float strength,const std::array<float,3> &color);
 void appendLight(float x,float y,float z,float radius,float strength,const std::array<float,3> &color,const mobj_t *source,float directionality,bool occluded=true,float baked=0,

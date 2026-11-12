@@ -305,9 +305,10 @@ void main() {
     if(c.effects.z==0.0) {
         // Sprites carry their baked light (and, without detail, their
         // dynamic light) in the tint.
-        // Sprites, the weapon and the face bring their room light in the tint:
-        // the Light level scales it too, so they darken with the world.
-        vec3 pulse=sprite?vTint*grounding*levelScale:vec3(0);
+        // Sprites, the weapon and the face bring the lamps' light in the tint,
+        // which the Light level leaves alone, as it does on walls and floors:
+        // only the sector's own level (light, above) darkens with it.
+        vec3 pulse=sprite?vTint*grounding:vec3(0);
         if(sprite&&(vMode&(MODE_SCREEN|MODE_RELIT))==MODE_RELIT) billboardLight(color,pulse,specular);
         if(weapon) weaponLight(relit,light,pulse,specular);
         if(!sprite) surfaceLight(lit,mapped,normal,screenNormal,glassy,blood,color,dp1,dp2,duv1,duv2,pulse,specular);
@@ -397,6 +398,13 @@ void main() {
     // sits on the paint, so outlines and crevices stay dark, and is capped:
     // Metal shine raises the cap.
     if(weapon&&(vMode&MODE_FACE)==0u&&c.levels.w>0.0) {
+        // The shotgun's reload frames (c.bfgLight.x on a gun without a light of
+        // its own): they keep their painted shading, under which the room's
+        // light reads faintly; how far it lifts and darkens them is taken further.
+        if(c.weaponSheen.w==0.0&&c.bfgLight.x>0.0) {
+            vec3 even=vec3(unshaded)*lampTint;
+            illumination=max(even+(illumination-even)*c.bfgLight.x,vec3(0.0));
+        }
         const float knee=0.75,ceiling=1.25;
         float peak=max(illumination.r,max(illumination.g,illumination.b));
         if(peak>knee) illumination*=(knee+(ceiling-knee)*(1.0-exp(-(peak-knee)/(ceiling-knee))))/peak;
@@ -460,6 +468,8 @@ void main() {
         // Never quite to nothing, as the face (below): in the darkest places the
         // light rounds to 0 and the whole gun would go pure black.
         illumination=max(illumination,vec3(1.0/16.0));
+        // The plasma rifle's vent (weapon.glsl), in its own blue: after the rules above.
+        illumination+=ventLit;specular+=ventGlow;
     }
     // MODE_FACE: painted skin already leans red, so colored light takes it
     // only part of the way (a red room tints the face, not floods it), and

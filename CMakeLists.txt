@@ -431,7 +431,7 @@ if(DOOM_BUILD_SDL)
     if(APPLE)
         target_sources(doom PRIVATE platform/i_mac_music.c platform/i_wad_launcher.mm platform/icon/derp.icns)
         set_source_files_properties(platform/i_wad_launcher.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-D_DARWIN_C_SOURCE")
-        # Made from platform/icon/derp-logo.png by scripts/make-mac-icon.swift.
+        # Made from platform/icon/nethermost-icon.png by scripts/make-icons.py.
         set_source_files_properties(platform/icon/derp.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
         target_link_libraries(doom PRIVATE "-framework AudioToolbox" "-framework CoreFoundation" "-framework Cocoa")
         # The identifier keeps the project's old name: changing it would make
@@ -461,7 +461,7 @@ if(DOOM_BUILD_SDL)
             set_target_properties(doom PROPERTIES OUTPUT_NAME "Nethermost")
         else()
             # The window icon, loaded beside the program (i_sdl_video.c).
-            # Made from platform/icon/derp-logo.png by scripts/make-icons.py.
+            # Made from platform/icon/nethermost-icon.png by scripts/make-icons.py.
             set_target_properties(doom PROPERTIES OUTPUT_NAME nethermost)
             add_custom_command(TARGET doom POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/platform/icon/derp.png"

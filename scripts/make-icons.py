@@ -1,21 +1,27 @@
-"""Make the Windows and Linux icons (platform/icon/derp.ico and derp.png) from
-the DERP wordmark, in the look of the Mac icon (scripts/make-mac-icon.swift).
+"""Make Nethermost's program icons from platform/icon/nethermost-icon.png:
+the Windows icon (platform/icon/derp.ico), the window icon on Linux
+(platform/icon/derp.png, 256 pixels) and the Mac app icon (platform/icon/derp.icns).
 Usage: py scripts/make-icons.py   (standard library only)
 
-The wordmark sits on a dark rounded tile with a red glow. At 256 pixels it is
-drawn 1:1, so the pixel art stays crisp; smaller sizes average 4x4 samples."""
-import math
+The picture fills the square on Windows and Linux. On the Mac it sits on a
+rounded tile inside the margin macOS icons keep (824 of 1024 pixels), so it
+lines up with the other apps in the Dock. Smaller sizes average the pixels
+each one covers; sizes above the picture's own repeat its pixels."""
 import pathlib
 import struct
 import zlib
 
 FOLDER = pathlib.Path(__file__).resolve().parent.parent / 'platform' / 'icon'
+SOURCE = FOLDER / 'nethermost-icon.png'
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
-SAMPLES = 4
+# The Mac's sizes and their entry types in an .icns file.
+ICNS_TYPES = [(b'ic11', 32), (b'ic12', 64), (b'ic07', 128), (b'ic08', 256), (b'ic13', 512),
+              (b'ic09', 512), (b'ic14', 1024), (b'ic10', 1024)]
+MAC_TILE, MAC_RADIUS = 824 / 1024, 185 / 1024
 
 
 def read_png(path):
-    """Width, height and rows of an 8-bit RGBA PNG."""
+    """Width, height and RGBA pixels (a list of rows of tuples) of an 8-bit RGB or RGBA PNG."""
     data = path.read_bytes()
     pos, idat = 8, b''
     while pos < len(data):
@@ -23,20 +29,21 @@ def read_png(path):
         body = data[pos + 8:pos + 8 + length]
         if kind == b'IHDR':
             width, height, depth, color, _, _, interlace = struct.unpack('>IIBBBBB', body)
-            if (depth, color, interlace) != (8, 6, 0):
-                raise SystemExit(f'{path.name}: expected 8-bit RGBA, not interlaced')
+            if depth != 8 or color not in (2, 6) or interlace:
+                raise SystemExit(f'{path.name}: expected 8-bit RGB or RGBA, not interlaced')
+            bpp = 4 if color == 6 else 3
         elif kind == b'IDAT':
             idat += body
         pos += 12 + length
-    raw, stride = zlib.decompress(idat), width * 4
+    raw, stride = zlib.decompress(idat), width * bpp
     rows, prev = [], bytearray(stride)
     for y in range(height):
         line = raw[y * (stride + 1):(y + 1) * (stride + 1)]
         kind, row = line[0], bytearray(line[1:])
         for i in range(stride):
-            a = row[i - 4] if i >= 4 else 0
+            a = row[i - bpp] if i >= bpp else 0
             b = prev[i]
-            c = prev[i - 4] if i >= 4 else 0
+            c = prev[i - bpp] if i >= bpp else 0
             if kind == 1:
                 row[i] = (row[i] + a) & 255
             elif kind == 2:
@@ -47,7 +54,8 @@ def read_png(path):
                 p = a + b - c
                 pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
                 row[i] = (row[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
-        rows.append(row)
+        rows.append([tuple(row[x * bpp:x * bpp + 3]) + ((row[x * bpp + 3],) if bpp == 4 else (255,))
+                     for x in range(width)])
         prev = row
     return width, height, rows
 
@@ -55,68 +63,81 @@ def read_png(path):
 def png_bytes(size, rows):
     def chunk(kind, body):
         return struct.pack('>I', len(body)) + kind + body + struct.pack('>I', zlib.crc32(kind + body))
-    raw = b''.join(b'\0' + bytes(row) for row in rows)
+    raw = b''.join(b'\0' + b''.join(bytes(p) for p in row) for row in rows)
     return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0))
             + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
 
 
-def render(size, logo):
-    """One icon size as RGBA rows."""
-    logo_w, logo_h, logo_rows = logo
-    s = float(size)
-    # A fuller tile than Apple's grid: Windows and Linux icons don't pad.
-    inset = s * 32 / 1024
-    radius = (s - 2 * inset) * 185 / 824
-    reach = (s - 2 * inset) * 0.7
-    inner, outer = (0.16, 0.03, 0.02), (0.03, 0.02, 0.02)
-    scale = s / 256
-    x0 = round((s - logo_w * scale) / 2)
-    y0 = round((s - logo_h * scale) / 2)
-    rows = []
-    for py in range(size):
-        row = bytearray()
-        for px in range(size):
-            r = g = b = covered = 0.0
-            for sy in range(SAMPLES):
-                y = py + (sy + 0.5) / SAMPLES
-                for sx in range(SAMPLES):
-                    x = px + (sx + 0.5) / SAMPLES
-                    dx = max(inset + radius - x, 0, x - (s - inset - radius))
-                    dy = max(inset + radius - y, 0, y - (s - inset - radius))
-                    if dx * dx + dy * dy > radius * radius:
-                        continue
-                    t = min(math.hypot(x - s / 2, y - s / 2) / reach, 1)
-                    cr, cg, cb = (i + (o - i) * t for i, o in zip(inner, outer))
-                    lx, ly = math.floor((x - x0) / scale), math.floor((y - y0) / scale)
-                    if 0 <= lx < logo_w and 0 <= ly < logo_h:
-                        pixel = logo_rows[ly][lx * 4:lx * 4 + 4]
-                        alpha = pixel[3] / 255
-                        cr += (pixel[0] / 255 - cr) * alpha
-                        cg += (pixel[1] / 255 - cg) * alpha
-                        cb += (pixel[2] / 255 - cb) * alpha
-                    r, g, b, covered = r + cr, g + cg, b + cb, covered + 1
-            if covered:
-                row += bytes((round(r / covered * 255), round(g / covered * 255), round(b / covered * 255),
-                              round(covered / SAMPLES ** 2 * 255)))
-            else:
-                row += bytes(4)
-        rows.append(row)
+def resize(source, size):
+    """The picture at size by size: each pixel the area-weighted average of the
+    source pixels it covers (premultiplied by alpha), or the nearest one when enlarging."""
+    width, height, rows = source
+    sx, sy = width / size, height / size
+    out = []
+    for y in range(size):
+        y0, y1 = y * sy, (y + 1) * sy
+        row = []
+        for x in range(size):
+            x0, x1 = x * sx, (x + 1) * sx
+            if sx <= 1:
+                row.append(rows[min(height - 1, int(y0 + sy / 2))][min(width - 1, int(x0 + sx / 2))])
+                continue
+            total = [0.0, 0.0, 0.0, 0.0]
+            weight = 0.0
+            for j in range(int(y0), min(height, int(y1 + 0.999999))):
+                wy = min(y1, j + 1) - max(y0, j)
+                for i in range(int(x0), min(width, int(x1 + 0.999999))):
+                    w = (min(x1, i + 1) - max(x0, i)) * wy
+                    r, g, b, a = rows[j][i]
+                    total[0] += r * a * w; total[1] += g * a * w; total[2] += b * a * w; total[3] += a * w
+                    weight += w
+            a = total[3] / weight
+            row.append((0, 0, 0, 0) if a <= 0 else
+                       tuple(round(min(255, total[c] / total[3])) for c in range(3)) + (round(a),))
+        out.append(row)
+    return out
+
+
+def mac_tile(source, size):
+    """The Mac icon at size: the picture shrunk to the tile, its corners rounded, on transparency."""
+    tile = round(size * MAC_TILE)
+    art, margin, radius = resize(source, tile), (size - round(size * MAC_TILE)) // 2, size * MAC_RADIUS
+    rows = [[(0, 0, 0, 0)] * size for _ in range(size)]
+    for y in range(tile):
+        for x in range(tile):
+            # Coverage of the rounded square at this pixel, sampled 4x4 for a smooth edge.
+            inside = 0
+            for j in range(4):
+                for i in range(4):
+                    px, py = x + (i + 0.5) / 4, y + (j + 0.5) / 4
+                    cx = min(max(px, radius), tile - radius)
+                    cy = min(max(py, radius), tile - radius)
+                    inside += (px - cx) ** 2 + (py - cy) ** 2 <= radius * radius
+            r, g, b, a = art[y][x]
+            rows[margin + y][margin + x] = (r, g, b, round(a * inside / 16))
     return rows
 
 
 def main():
-    logo = read_png(FOLDER / 'derp-logo.png')
-    images = {size: png_bytes(size, render(size, logo)) for size in ICO_SIZES}
-    # An .ico of PNG entries (Windows Vista and later).
-    offset = 6 + 16 * len(images)
-    header, entries, payload = struct.pack('<HHH', 0, 1, len(images)), b'', b''
-    for size, image in images.items():
-        entries += struct.pack('<BBBBHHII', size % 256, size % 256, 0, 0, 1, 32, len(image), offset)
-        offset += len(image)
-        payload += image
+    source = read_png(SOURCE)
+    images = {size: png_bytes(size, resize(source, size)) for size in ICO_SIZES}
+    header = struct.pack('<HHH', 0, 1, len(ICO_SIZES))
+    entries, payload, offset = b'', b'', 6 + 16 * len(ICO_SIZES)
+    for size in ICO_SIZES:
+        data = images[size]
+        entries += struct.pack('<BBBBHHII', size % 256, size % 256, 0, 0, 1, 32, len(data), offset)
+        payload += data
+        offset += len(data)
     (FOLDER / 'derp.ico').write_bytes(header + entries + payload)
     (FOLDER / 'derp.png').write_bytes(images[256])
-    print('Wrote platform/icon/derp.ico and platform/icon/derp.png')
+    tiles = {}
+    body = b''
+    for kind, size in ICNS_TYPES:
+        if size not in tiles:
+            tiles[size] = png_bytes(size, mac_tile(source, size))
+        body += kind + struct.pack('>I', 8 + len(tiles[size])) + tiles[size]
+    (FOLDER / 'derp.icns').write_bytes(b'icns' + struct.pack('>I', 8 + len(body)) + body)
+    print('Wrote platform/icon/derp.ico, derp.png and derp.icns')
 
 
 if __name__ == '__main__':
